@@ -23,25 +23,44 @@ const UserService = {
       );
     }
 
-    const existingUser = await User.findOne({ email }).lean();
-    if (existingUser && !existingUser.verified) {
-      throwError("Email already use", 400);
+    let user = await User.findOne({ email });
+
+    if (user) {
+      if (!user.verified) {
+        user.name = name;
+        user.password = password;
+        const verifyToken = await user.createVerifyToken();
+        await user.save();
+
+        // Gửi lại email xác thực
+        const verifyUrl = `${req.protocol}://${req.get(
+          "host"
+        )}/v1/api/auth/verify-email/${verifyToken}`;
+
+        mailServices.sendEmail({
+          to: email,
+          subject: "Xác thực tài khoản",
+          html: verifyEmailTemplate(name, verifyUrl),
+        });
+
+        return;
+      }
+
+      throwError("Email already in use", 400);
     }
 
-    const user = new User({ name, email, password });
+    user = new User({ name, email, password });
     const verifyToken = await user.createVerifyToken();
     await user.save();
 
-    // Tạo link xác thực
     const verifyUrl = `${req.protocol}://${req.get(
       "host"
     )}/v1/api/auth/verify-email/${verifyToken}`;
 
-    // Gửi email với template HTML
     mailServices.sendEmail({
       to: email,
       subject: "Xác thực tài khoản",
-      html: verifyEmailTemplate(name, verifyUrl), // Sử dụng template
+      html: verifyEmailTemplate(name, verifyUrl),
     });
   },
 
