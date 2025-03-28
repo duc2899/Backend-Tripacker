@@ -24,7 +24,7 @@ const UserService = {
     }
 
     const existingUser = await User.findOne({ email }).lean();
-    if (existingUser) {
+    if (existingUser && !existingUser.verified) {
       throwError("Email already use", 400);
     }
 
