@@ -1,0 +1,15 @@
+# Ignore tất cả các file .log
+*.log
+
+# Ignore thư mục node_modules
+node_modules/
+.env
+credentials.json
+
+# Ignore file hoặc thư mục cụ thể
+dist/
+temp/
+
+# Ignore tất cả file nhưng ngoại trừ một file
+*.txt
+!important.txt
