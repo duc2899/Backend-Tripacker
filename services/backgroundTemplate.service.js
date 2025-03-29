@@ -17,11 +17,11 @@ const BackgroundTemplateService = {
 
   async getBackgroundsByTripType(id) {
     if (!id) {
-      throwError("Invalid id");
+      throwError("BGTEM-003");
     }
     const bgTemplate = await backgroundTemplateModel.findById(id).lean();
     if (!bgTemplate) {
-      throwError(`Not found background template with id: ${id}`);
+      throwError(`BGTEM-004`);
     }
 
     // Shuffle the backgrounds array
@@ -32,6 +32,7 @@ const BackgroundTemplateService = {
     // Return the first 10 items
     return shuffledBackgrounds.slice(0, 10);
   },
+
   async getAllTripTypes() {
     const tripTypes = await backgroundTemplateModel
       .find({}, "tripType _id")

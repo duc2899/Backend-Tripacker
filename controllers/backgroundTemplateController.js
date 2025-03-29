@@ -18,7 +18,7 @@ exports.getBackGroundByTripType = async (req, res, next) => {
     );
     return res.status(200).json({
       status: true,
-      message: "Get data background succesfully",
+      message: "BGTEM-001",
       data: reuslt,
     });
   } catch (error) {
@@ -31,7 +31,7 @@ exports.getAllTripType = async (req, res, next) => {
     const result = await BackgroundTemplateService.getAllTripTypes();
     return res.status(200).json({
       status: true,
-      message: "Get all trip types successfully",
+      message: "BGTEM-002",
       data: result,
     });
   } catch (error) {

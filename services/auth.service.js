@@ -12,21 +12,30 @@ const { EXPIRED_TIME_TOKEN, MAX_AGE_COOKIE } = require("../config/constant");
 
 const isDevelopment = process.env.NODE_ENV === "development";
 
-const UserService = {
-  async register(req) {
+const AuthService = {
+  async register(req, res) {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-      throwError(
-        "Please provide all required information: name, email, and password.",
-        400
-      );
+      throwError("AUTH-001", 400);
+    }
+    if (/\s/.test(name)) {
+      throwError("AUTH-002", 400);
     }
 
     let user = await User.findOne({ email });
 
     if (user) {
       if (!user.verified) {
+        // Kiểm tra nếu token xác thực còn hạn
+        const isTokenValid =
+          user.verifyTokenExpires && user.verifyTokenExpires > Date.now();
+
+        if (isTokenValid) {
+          throwError("AUTH-003", 400);
+        }
+
+        // Nếu token hết hạn, tạo lại token mới
         user.name = name;
         user.password = password;
         const verifyToken = await user.createVerifyToken();
@@ -43,16 +52,22 @@ const UserService = {
           html: verifyEmailTemplate(name, verifyUrl),
         });
 
-        return;
+        return res.status(200).json({
+          status: true,
+          message: "A new verification email has been sent.",
+          code: "AUTH-004",
+        });
       }
 
-      throwError("Email already in use", 400);
+      throwError("AUTH-006", 400);
     }
 
+    // Nếu không tìm thấy user, tạo mới
     user = new User({ name, email, password });
     const verifyToken = await user.createVerifyToken();
     await user.save();
 
+    // Gửi email xác thực
     const verifyUrl = `${req.protocol}://${req.get(
       "host"
     )}/v1/api/auth/verify-email/${verifyToken}`;
@@ -62,13 +77,23 @@ const UserService = {
       subject: "Xác thực tài khoản",
       html: verifyEmailTemplate(name, verifyUrl),
     });
+
+    return res.status(201).json({
+      status: true,
+      message:
+        "Account created successfully. Please check your email for verification.",
+      code: "AUTH-005",
+    });
   },
 
   async login(data, res) {
     const { identifier, password } = data;
 
     if (!identifier.trim() || !password.trim()) {
-      throwError("Both identifier and password are required");
+      throwError("AUTH-007");
+    }
+    if (/\s/.test(identifier)) {
+      throwError("AUTH-002");
     }
 
     const userDoc = await User.findOne({
@@ -76,19 +101,19 @@ const UserService = {
     }).select("+password");
 
     if (!userDoc) {
-      throwError("Identifier or Password is incorrect");
+      throwError("AUTH-008");
     }
 
     if (!(await userDoc.isCorrectPassword(password, userDoc.password))) {
-      throwError("Identifier or Password is incorrect");
+      throwError("AUTH-008");
     }
 
     if (!userDoc.verified) {
-      throwError("Account has not been verified");
+      throwError("AUTH-009");
     }
 
     if (userDoc.isDisabled) {
-      throwError("Account has been disabled. Please contact the admin");
+      throwError("AUTH-010");
     }
 
     const token = signToken(userDoc._id, v4());
@@ -114,7 +139,9 @@ const UserService = {
 
     if (!user) {
       return res.redirect(
-        "https://yourfrontend.com/email-verification?status=failed"
+        `${
+          isDevelopment ? process.env.DEV_ALLOW_URL : PRODUCTION_ALLOW_URL
+        }/auth/error`
       );
     }
 
@@ -123,13 +150,16 @@ const UserService = {
     user.verifyToken = undefined;
     user.verifyTokenExpires = undefined;
     await user.save({ validateModifiedOnly: true });
+
+    return res.redirect(
+      `${
+        isDevelopment ? process.env.DEV_ALLOW_URL : PRODUCTION_ALLOW_URL
+      }/auth/login`
+    );
   },
 
   async logout(data, res) {
     const { userId, jit } = data;
-
-    const userDoc = await User.findById(userId);
-    if (!userDoc) throwError("User not found");
 
     // Đưa token vào danh sách đen trong Redis
     await redis.set(
@@ -139,7 +169,7 @@ const UserService = {
       7 * 24 * 60 * 60
     );
 
-    res.clearCookie("access_token", {
+    return res.clearCookie("access_token", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Strict",
@@ -154,4 +184,4 @@ const options = {
 const signToken = (userId, jit) =>
   jwt.sign({ userId, jit }, process.env.JWT_SECRET, options);
 
-module.exports = UserService;
+module.exports = AuthService;

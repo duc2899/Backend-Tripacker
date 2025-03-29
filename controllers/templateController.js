@@ -4,7 +4,7 @@ exports.createTemplate = async (req, res, next) => {
   try {
     const result = await templateService.createTemplate(req.body, req.user);
     return res.status(201).json({
-      message: "Template created successfully",
+      message: "TEM-001",
       data: result,
     });
   } catch (error) {
@@ -17,6 +17,7 @@ exports.getSuggest = async (req, res, next) => {
     const result = await templateService.getSuggestAI(req.body);
     return res.status(200).json({
       data: result,
+      message: "TEM-002",
     });
   } catch (error) {
     next(error);
@@ -27,8 +28,8 @@ exports.getTemplate = async (req, res, next) => {
   try {
     const result = await templateService.getTemplate(req.params.templateId);
     res.status(200).json({
-      message: "Template and Pack retrieved successfully",
       data: result,
+      message: "TEM-003",
     });
   } catch (error) {
     next(error);
@@ -43,7 +44,7 @@ exports.updateCategoryPacks = async (req, res, next) => {
     );
 
     return res.status(200).json({
-      message: "Pack updated successfully",
+      message: "TEM-004",
       data: result,
     });
   } catch (error) {
@@ -56,7 +57,7 @@ exports.updateInforTemplate = async (req, res, next) => {
     const result = await templateService(req.body, req.user);
 
     return res.status(200).json({
-      message: "Template updated successfully",
+      message: "TEM-004",
       data: result,
     });
   } catch (error) {

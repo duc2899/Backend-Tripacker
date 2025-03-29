@@ -1,6 +1,8 @@
 const EXPIRED_TIME_TOKEN = "1d";
 const MAX_AGE_COOKIE = 7 * 24 * 60 * 60 * 1000;
+const MAX_SOCIAL_NETWORKS = 3;
 module.exports = {
   EXPIRED_TIME_TOKEN,
   MAX_AGE_COOKIE,
+  MAX_SOCIAL_NETWORKS,
 };

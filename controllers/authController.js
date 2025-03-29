@@ -2,13 +2,7 @@ const authServices = require("../services/auth.service.js");
 
 exports.register = async (req, res, next) => {
   try {
-    await authServices.register(req);
-
-    return res.status(201).json({
-      success: true,
-      message:
-        "Account has been created. Please check email to verify this account",
-    });
+    await authServices.register(req, res);
   } catch (error) {
     next(error);
   }
@@ -20,7 +14,7 @@ exports.verifyEmail = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      message: "Your account has been successfully verified!",
+      message: "AUTH-011",
     });
   } catch (error) {
     next(error);
@@ -33,7 +27,7 @@ exports.login = async (req, res, next) => {
 
     return res.status(200).json({
       status: true,
-      message: "Logged in successfully",
+      message: "AUTH-012",
       data: {
         userId: result,
       },
@@ -49,7 +43,7 @@ exports.logout = async (req, res, next) => {
 
     return res.status(200).json({
       status: true,
-      message: "Logged out successfully",
+      message: "AUTH-013",
     });
   } catch (error) {
     next(error);

@@ -85,13 +85,13 @@ const TemplateService = {
     // Tìm template theo ID
     const template = await Template.findById(templateId).lean();
     if (!template) {
-      throwError("Template not found");
+      throwError("TEM-005");
     }
 
     // Lấy thông tin của pack liên quan đến template
     const packs = await Pack.findById(template.packId).lean();
     if (!packs) {
-      throwError("Pack not found for the given template");
+      throwError("TEM-006");
     }
 
     return {
@@ -103,34 +103,34 @@ const TemplateService = {
   async updateCategoryPacks(data, userId) {
     const { packId, packItems, templateId, categoryId } = data;
     if (!packId) {
-      throwError("packId is required");
+      throwError("TEM-007");
     }
 
     if (!Array.isArray(packItems) || packItems.length === 0) {
-      throwError("packItems must be a non-empty array");
+      throwError("TEM-008");
     }
 
     for (const item of packItems) {
       if (!item.name || typeof item.name !== "string") {
-        throwError("Each pack item must have a valid name");
+        throwError("TEM-009");
       }
       if (typeof item.isCheck !== "boolean") {
-        throwError("Each pack item must have a valid isCheck value (boolean)");
+        throwError("TEM-010");
       }
     }
 
     if (!templateId) {
-      throwError("templateId is required");
+      throwError("TEM-011");
     }
 
     const template = await Template.findOne({ _id: templateId, userId }).lean();
     if (!template) {
-      throwError("Template not found");
+      throwError("TEM-012");
     }
 
     const pack = await Pack.findById(packId);
     if (!pack) {
-      throwError("Pack not found");
+      throwError("TEM-013");
     }
 
     const category = pack.categories.find(
@@ -138,7 +138,7 @@ const TemplateService = {
     );
 
     if (!category) {
-      throwError("Category not found for the given categoryId");
+      throwError("TEM-014");
     }
 
     const updatedItems = packItems.map((newItem) => {
@@ -165,7 +165,7 @@ const TemplateService = {
     // Kiểm tra template có tồn tại không
     const template = await Template.findOne({ _id: templateId, userId });
     if (!template) {
-      throwError("Template not found or unauthorized");
+      throwError("TEM-015");
     }
 
     // Kiểm tra và validate dữ liệu
@@ -205,22 +205,22 @@ const validateTemplateData = (data, isCreate = false) => {
       !vihicle ||
       !destination)
   ) {
-    throwError("Missing required fields");
+    throwError("TEM-016");
   }
   if (members <= 0) {
-    throwError("members must be bigger than 0");
+    throwError("TEM-017");
   }
 
   if (budget !== undefined && budget <= 0) {
-    throwError("Budget must be greater than 0");
+    throwError("TEM-018");
   }
 
   const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
   if (startDate && !dateRegex.test(startDate)) {
-    throwError("Departure date must be in the format mm/dd/yyyy");
+    throwError("TEM-019");
   }
   if (endDate && !dateRegex.test(endDate)) {
-    throwError("Return date must be in the format mm/dd/yyyy");
+    throwError("TEM-020");
   }
 
   if (startDate && endDate) {
@@ -231,10 +231,10 @@ const validateTemplateData = (data, isCreate = false) => {
     );
 
     if (new Date(startDate) < vietnamNow) {
-      throwError("Departure date must be in the future");
+      throwError("TEM-021");
     }
     if (new Date(startDate) > new Date(endDate)) {
-      throwError("Return date must be greater than or equal to departure date");
+      throwError("TEM-022");
     }
   }
 
@@ -242,12 +242,12 @@ const validateTemplateData = (data, isCreate = false) => {
     const emails = listMembers.map((member) => member.email);
     const uniqueEmails = new Set(emails);
     if (emails.length !== uniqueEmails.size) {
-      throwError("Duplicate emails found in listMembers");
+      throwError("TEM-023");
     }
 
     for (const member of listMembers) {
       if (!isValidEmail(member.email)) {
-        throwError(`Invalid email format: ${member.email}`);
+        throwError(`TEM-024`);
       }
     }
   }

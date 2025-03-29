@@ -10,6 +10,10 @@ const userSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
+    fullName: {
+      type: String,
+      trim: true,
+    },
     email: {
       type: String,
       validate: {
@@ -22,6 +26,24 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
+    },
+    avatar: {
+      url: String,
+      id: String,
+    },
+    about: {
+      type: String,
+      trim: true,
+      maxLength: [140, "About must be less than 140 characters"],
+    },
+    socialNetwork: [
+      {
+        type: String,
+      },
+    ],
+    gender: {
+      type: String,
+      enum: ["male", "female", "other"],
     },
     password: {
       type: String,
@@ -46,6 +68,11 @@ const userSchema = new mongoose.Schema(
     updatedAt: {
       type: Date,
       default: Date.now,
+    },
+    role: {
+      type: String,
+      default: "user",
+      enum: ["admin", "user"],
     },
   },
   { timestamps: true }
@@ -75,6 +102,7 @@ userSchema.methods.createVerifyToken = function () {
   this.verifyTokenExpires = Date.now() + 10 * 60 * 1000; // 10 phút
   return token;
 };
+
 const User = mongoose.model("Users", userSchema);
 
 module.exports = User;
