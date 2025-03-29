@@ -7,7 +7,7 @@ const cloudinary = require("../config/cloudinary.js");
 const throwError = require("../utils/throwError");
 const Userservice = {
   async updateUser(userId, updateData) {
-    const { fullName, about, socialNetwork, gender } = updateData;
+    const { fullName, about, socialNetwork, gender, birthDay } = updateData;
 
     // Validate socialNetwork links (max 3, must be valid URLs)
     if (socialNetwork && Array.isArray(socialNetwork)) {
@@ -23,6 +23,27 @@ const Userservice = {
         }
       }
     }
+    const isValidDateFormat = (dateString) => {
+      const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
+      return regex.test(dateString);
+    };
+
+    if (birthDay) {
+      if (!isValidDateFormat(birthDay)) {
+        throwError("USER-010", 400, "INVALID_DATE_FORMAT");
+      }
+
+      const birthDate = new Date(birthDay);
+      const currentDate = new Date();
+
+      if (isNaN(birthDate.getTime())) {
+        throwError("USER-011", 400, "INVALID_DATE_VALUE");
+      }
+
+      if (birthDate >= currentDate) {
+        throwError("USER-012", 400, "FUTURE_DATE_NOT_ALLOWED");
+      }
+    }
 
     // Prepare update object
     const updateObject = {};
@@ -30,6 +51,7 @@ const Userservice = {
     if (about) updateObject.about = about;
     if (socialNetwork) updateObject.socialNetwork = socialNetwork;
     if (gender) updateObject.gender = gender;
+    if (birthDay) updateObject.birthDay = birthDay;
 
     await User.findByIdAndUpdate(userId, updateObject, {
       new: true,
@@ -46,7 +68,7 @@ const Userservice = {
 
   async getUserInformation(userId) {
     const user = await User.findById(userId).select(
-      "name fullName avatar about gender socialNetwork _id email role createdAt"
+      "name fullName avatar about gender socialNetwork _id email role createdAt birthDay"
     );
     return user;
   },
