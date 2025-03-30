@@ -26,13 +26,14 @@ const BackgroundTemplateService = {
       })
       .lean();
 
-    // Shuffle the backgrounds array
-    const shuffledBackgrounds = bgTemplates.sort(() => Math.random() - 0.5);
+    if (!bgTemplates || bgTemplates.length === 0) {
+      return {};
+    }
 
-    // Return the first 10 items with only _id and url
-    return shuffledBackgrounds
-      .slice(0, 10)
-      .map((bg) => ({ _id: bg._id, url: bg.background.url }));
+    const randomIndex = Math.floor(Math.random() * bgTemplates.length);
+    const randomBackground = bgTemplates[randomIndex];
+
+    return { _id: randomBackground._id, url: randomBackground.background.url };
   },
 
   async getAllTripTypes() {
@@ -73,6 +74,7 @@ const getTripType = async (spreadsheetId) => {
     return [];
   }
 };
+
 const getDataImageAndSave = async (spreadsheetId, sheetName) => {
   const client = auth.fromJSON(require("../credentials.json"));
   client.scopes = ["https://www.googleapis.com/auth/spreadsheets"];

@@ -11,6 +11,7 @@ exports.fectchDataImageBackground = async (req, res, next) => {
     next(error);
   }
 };
+
 exports.getBackGroundByTripType = async (req, res, next) => {
   try {
     const reuslt = await BackgroundTemplateService.getBackgroundsByTripType(
