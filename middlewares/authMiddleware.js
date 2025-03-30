@@ -10,8 +10,7 @@ const authMiddleware = async (req, res, next) => {
 
   if (!token) {
     return res.status(401).json({
-      message: "Authorization token is missing",
-      code: "AUTH-016",
+      message: "AUTH-016",
       status: false,
     });
   }
@@ -25,15 +24,12 @@ const authMiddleware = async (req, res, next) => {
     ).lean();
 
     if (!user) {
-      return res
-        .status(403)
-        .json({ message: "User not found", code: "AUTH-014", status: false });
+      return res.status(403).json({ message: "AUTH-014", status: false });
     }
 
     if (user.isDisabled) {
       return res.status(403).json({
-        message: "User is disabled. Please contact the admin",
-        code: "AUTH-015",
+        message: "AUTH-015",
         status: false,
       });
     }
@@ -44,7 +40,7 @@ const authMiddleware = async (req, res, next) => {
     // if (isTokenRevoked) {
     //   return res
     //     .status(401)
-    //     .json({ message: "Token revoked", code: "AUTH-018", status: false });
+    //     .json({ message: "Token revoked", message: "AUTH-018", status: false });
     // }
 
     req.user = {
@@ -54,9 +50,7 @@ const authMiddleware = async (req, res, next) => {
     };
     next();
   } catch (err) {
-    return res
-      .status(403)
-      .json({ message: "Invalid token", code: "AUTH-017", status: false });
+    return res.status(403).json({ message: "AUTH-017", status: false });
   }
 };
 

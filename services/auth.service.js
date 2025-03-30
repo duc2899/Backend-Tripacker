@@ -156,7 +156,7 @@ const AuthService = {
         isDevelopment
           ? process.env.DEV_ALLOW_URL
           : process.env.PRODUCTION_ALLOW_URL
-      }/auth/success`
+      }/auth/login`
     );
   },
 

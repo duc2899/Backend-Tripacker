@@ -1,4 +1,4 @@
-const BackgroundTemplateService = require("../services/backgroundTemplate.service");
+const BackgroundTemplateService = require("../services/backgroundTemplate.service.js");
 
 exports.fectchDataImageBackground = async (req, res, next) => {
   try {

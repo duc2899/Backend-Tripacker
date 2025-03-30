@@ -9,8 +9,7 @@ exports.updateUser = async (req, res, next) => {
 
     return res.status(200).json({
       status: true,
-      message: "User updated successfully",
-      code: "USER-003",
+      message: "USER-003",
       data: updatedUser,
     });
   } catch (error) {
@@ -24,8 +23,7 @@ exports.getMe = async (req, res, next) => {
 
     return res.status(200).json({
       status: true,
-      message: "User retrieved successfully",
-      code: "USER-004",
+      message: "USER-004",
       data: user,
     });
   } catch (error) {

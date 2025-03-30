@@ -20,18 +20,19 @@ const BackgroundTemplateService = {
     if (!id) {
       throwError("BGTEM-003");
     }
-    const bgTemplate = await backgroundTemplateModel.findById(id).lean();
-    if (!bgTemplate) {
-      throwError(`BGTEM-004`);
-    }
+    const bgTemplates = await backgroundTemplateModel
+      .find({
+        tripTypeId: id,
+      })
+      .lean();
 
     // Shuffle the backgrounds array
-    const shuffledBackgrounds = bgTemplate.backgrounds.sort(
-      () => Math.random() - 0.5
-    );
+    const shuffledBackgrounds = bgTemplates.sort(() => Math.random() - 0.5);
 
-    // Return the first 10 items
-    return shuffledBackgrounds.slice(0, 10);
+    // Return the first 10 items with only _id and url
+    return shuffledBackgrounds
+      .slice(0, 10)
+      .map((bg) => ({ _id: bg._id, url: bg.background.url }));
   },
 
   async getAllTripTypes() {
