@@ -22,4 +22,10 @@ router.get(
   templateController.getTemplate
 );
 
+router.get(
+  "/getSearchGoogle",
+  authMiddleware,
+  templateController.getSearchGoogle
+);
+
 module.exports = router;

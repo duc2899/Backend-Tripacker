@@ -11,11 +11,6 @@ exports.register = async (req, res, next) => {
 exports.verifyEmail = async (req, res, next) => {
   try {
     await authServices.verifyEmail(req.params.token, res);
-
-    return res.status(200).json({
-      success: true,
-      message: "AUTH-011",
-    });
   } catch (error) {
     next(error);
   }

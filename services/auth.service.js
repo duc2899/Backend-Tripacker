@@ -54,8 +54,7 @@ const AuthService = {
 
         return res.status(200).json({
           status: true,
-          message: "A new verification email has been sent.",
-          code: "AUTH-004",
+          message: "AUTH-004",
         });
       }
 
@@ -80,9 +79,7 @@ const AuthService = {
 
     return res.status(201).json({
       status: true,
-      message:
-        "Account created successfully. Please check your email for verification.",
-      code: "AUTH-005",
+      message: "AUTH-005",
     });
   },
 
@@ -138,22 +135,23 @@ const AuthService = {
     });
 
     if (!user) {
-      res.redirect(
+      return res.redirect(
         `${
           isDevelopment
             ? process.env.DEV_ALLOW_URL
             : process.env.PRODUCTION_ALLOW_URL
         }/auth/error`
       );
-      return;
     }
 
     user.verified = true;
     user.verifyToken = undefined;
     user.verifyTokenExpires = undefined;
-    await user.save();
+    await user.save({
+      validateModifiedOnly: true,
+    });
 
-    res.redirect(
+    return res.redirect(
       `${
         isDevelopment
           ? process.env.DEV_ALLOW_URL

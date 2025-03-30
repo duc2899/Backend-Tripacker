@@ -105,7 +105,7 @@ userSchema.methods.isCorrectPassword = async function (
 userSchema.methods.createVerifyToken = function () {
   const token = crypto.randomBytes(32).toString("hex");
   this.verifyToken = crypto.createHash("sha256").update(token).digest("hex");
-  this.verifyTokenExpires = Date.now() + 10 * 60 * 1000; // 10 phút
+  this.verifyTokenExpires = Date.now() + 5 * 60 * 1000; // 10 phút
   return token;
 };
 

@@ -67,3 +67,15 @@ exports.updateInforTemplate = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.getSearchGoogle = async (req, res, next) => {
+  try {
+    const result = await templateService.getSearchGoogle();
+    return res.status(200).json({
+      message: "TEM-005",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
