@@ -163,13 +163,13 @@ const AuthService = {
   async logout(data, res) {
     const { userId, jit } = data;
 
-    // Đưa token vào danh sách đen trong Redis
-    await redis.set(
-      `TOKEN_BLACK_LIST_${userId}_${jit}`,
-      1,
-      "EX",
-      7 * 24 * 60 * 60
-    );
+    // // Đưa token vào danh sách đen trong Redis
+    // await redis.set(
+    //   `TOKEN_BLACK_LIST_${userId}_${jit}`,
+    //   1,
+    //   "EX",
+    //   7 * 24 * 60 * 60
+    // );
 
     return res.clearCookie("access_token", {
       httpOnly: true,
