@@ -9,6 +9,7 @@ router.get(
   authMiddleware,
   userController.getUserInformation
 );
+router.get("/templateOwner", authMiddleware, userController.getTemplateOwner);
 router.post("/update", authMiddleware, userController.updateUser);
 router.post(
   "/updateAvatar",

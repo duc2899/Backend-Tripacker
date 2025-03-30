@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema(
     fullName: {
       type: String,
       trim: true,
-      default: null,
+      default: "",
     },
     email: {
       type: String,
@@ -29,15 +29,14 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
     avatar: {
-      url: String,
-      id: String,
-      default: null,
+      url: { type: String, default: "" },
+      id: { type: String, default: "" },
     },
     about: {
       type: String,
       trim: true,
       maxLength: [140, "About must be less than 140 characters"],
-      default: null,
+      default: "",
     },
     socialNetwork: [
       {
@@ -50,7 +49,7 @@ const userSchema = new mongoose.Schema(
     },
     birthDay: {
       type: String,
-      default: null,
+      default: "",
     },
     password: {
       type: String,

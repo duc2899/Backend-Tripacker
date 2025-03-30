@@ -40,7 +40,7 @@ exports.updateCategoryPacks = async (req, res, next) => {
   try {
     const result = await templateService.updateCategoryPacks(
       req.body,
-      req.user
+      req.user.userId
     );
 
     return res.status(200).json({
@@ -54,7 +54,10 @@ exports.updateCategoryPacks = async (req, res, next) => {
 
 exports.updateInforTemplate = async (req, res, next) => {
   try {
-    const result = await templateService(req.body, req.user);
+    const result = await templateService.updateInforTemplate(
+      req.body,
+      req.user.userId
+    );
 
     return res.status(200).json({
       message: "TEM-004",

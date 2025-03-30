@@ -138,23 +138,27 @@ const AuthService = {
     });
 
     if (!user) {
-      return res.redirect(
+      res.redirect(
         `${
-          isDevelopment ? process.env.DEV_ALLOW_URL : PRODUCTION_ALLOW_URL
+          isDevelopment
+            ? process.env.DEV_ALLOW_URL
+            : process.env.PRODUCTION_ALLOW_URL
         }/auth/error`
       );
+      return;
     }
 
-    // Update verification status
     user.verified = true;
     user.verifyToken = undefined;
     user.verifyTokenExpires = undefined;
-    await user.save({ validateModifiedOnly: true });
+    await user.save();
 
-    return res.redirect(
+    res.redirect(
       `${
-        isDevelopment ? process.env.DEV_ALLOW_URL : PRODUCTION_ALLOW_URL
-      }/auth/login`
+        isDevelopment
+          ? process.env.DEV_ALLOW_URL
+          : process.env.PRODUCTION_ALLOW_URL
+      }/auth/success`
     );
   },
 

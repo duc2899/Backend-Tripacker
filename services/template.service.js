@@ -1,23 +1,66 @@
-const Pack = require("../models/packModel");
-const Template = require("../models/templatesModel");
-const throwError = require("../utils/throwError");
-const DefaultItem = require("../models/defaultItemsModel");
+const PackModel = require("../models/packModel");
+const TemplateModel = require("../models/templatesModel");
+const DefaultItemModel = require("../models/defaultItemsModel");
+const backgroundsTemplateModel = require("../models/backgroundTemplateModel");
+const tripTypeModel = require("../models/tripTypeModel");
 const { isValidEmail } = require("../utils/validateEmail");
 const { callAI } = require("./getSuggestAI");
+const throwError = require("../utils/throwError");
 
 const TemplateService = {
+  async getTemplate(templateId) {
+    const template = await TemplateModel.findById(templateId)
+      .populate("pack")
+      .lean();
+    if (!template) {
+      throwError("TEM-005");
+    }
+
+    const responseTemplate = await getTemplateDetails(template);
+
+    return responseTemplate;
+  },
+
   async createTemplate(templateData, reqUser) {
     const { userId, email, name } = reqUser;
+    const {
+      background,
+      tripType,
+      title,
+      startDate,
+      endDate,
+      budget,
+      members,
+      vihicle,
+      destination,
+      listMembers,
+      healthNotes,
+      description,
+    } = templateData;
 
     // Thêm người tạo vào danh sách thành viên
     templateData.listMembers = templateData.listMembers || [];
     templateData.listMembers.push({ email, name });
 
-    // Kiểm tra và validate dữ liệu (bắt buộc đầy đủ dữ liệu khi tạo mới)
+    // Kiểm tra background có tồn tại trong model không
+    const backgroundTemplate = await backgroundsTemplateModel.findById(
+      background
+    );
+    if (!backgroundTemplate) {
+      throwError("TEM-025");
+    }
+
+    // Kiểm tra tripType có tồn tại trong model không
+    const tripTypeTemplate = await tripTypeModel.findById(tripType);
+    if (!tripTypeTemplate) {
+      throwError("TEM-026");
+    }
+    // Kiểm tra dữ liệu
     validateTemplateData(templateData, true);
 
-    const defaultItems = await DefaultItem.find().lean();
-    const pack = new Pack({
+    // Lấy danh sách items mặc định
+    const defaultItems = await DefaultItemModel.find().lean();
+    const pack = new PackModel({
       categories: defaultItems.map((category) => ({
         category: category.category,
         items: category.items.map((item) => ({ name: item, isCheck: false })),
@@ -26,21 +69,28 @@ const TemplateService = {
     });
     await pack.save();
 
-    const newTemplate = await Template.create({
-      title: templateData.title,
-      startDate: templateData.startDate,
-      endDate: templateData.endDate,
-      budget: templateData.budget,
-      members: templateData.members,
-      vihicle: templateData.vihicle,
-      tripType: templateData.tripType,
-      destination: templateData.destination,
-      listMembers: templateData.listMembers,
-      healthNotes: templateData.healthNotes,
-      packId: pack._id,
-      userId,
+    // Tạo template mới
+    const newTemplate = await TemplateModel.create({
+      title,
+      startDate,
+      endDate,
+      budget,
+      members,
+      vihicle,
+      tripType,
+      destination,
+      listMembers,
+      healthNotes,
+      background,
+      pack: pack._id,
+      description,
+      user: userId,
     });
-    return newTemplate;
+
+    // Lấy thông tin chi tiết template
+    const responseTemplate = await getTemplateDetails(newTemplate.toObject());
+    responseTemplate.pack = pack.toObject();
+    return responseTemplate;
   },
 
   async getSuggestAI(data) {
@@ -81,25 +131,6 @@ const TemplateService = {
     return JSON.parse(cleanedResponse);
   },
 
-  async getTemplate(templateId) {
-    // Tìm template theo ID
-    const template = await Template.findById(templateId).lean();
-    if (!template) {
-      throwError("TEM-005");
-    }
-
-    // Lấy thông tin của pack liên quan đến template
-    const packs = await Pack.findById(template.packId).lean();
-    if (!packs) {
-      throwError("TEM-006");
-    }
-
-    return {
-      template,
-      packs,
-    };
-  },
-
   async updateCategoryPacks(data, userId) {
     const { packId, packItems, templateId, categoryId } = data;
     if (!packId) {
@@ -123,12 +154,15 @@ const TemplateService = {
       throwError("TEM-011");
     }
 
-    const template = await Template.findOne({ _id: templateId, userId }).lean();
+    const template = await TemplateModel.findOne({
+      _id: templateId,
+      userId,
+    }).lean();
     if (!template) {
       throwError("TEM-012");
     }
 
-    const pack = await Pack.findById(packId);
+    const pack = await PackModel.findById(packId);
     if (!pack) {
       throwError("TEM-013");
     }
@@ -160,10 +194,10 @@ const TemplateService = {
     return pack;
   },
 
-  async updateInforTemplate(data, useId) {
+  async updateInforTemplate(data, userId) {
     const { templateId, updateData } = data;
     // Kiểm tra template có tồn tại không
-    const template = await Template.findOne({ _id: templateId, userId });
+    const template = await TemplateModel.findOne({ _id: templateId, userId });
     if (!template) {
       throwError("TEM-015");
     }
@@ -173,12 +207,21 @@ const TemplateService = {
 
     // Cập nhật template với những trường có dữ liệu
     Object.keys(updateData).forEach((key) => {
-      if (updateData[key] !== undefined) {
+      if (
+        updateData[key] !== undefined &&
+        key !== "packId" &&
+        key !== "userId" &&
+        key !== "tripTypeId" &&
+        key !== "backgroundId"
+      ) {
         template[key] = updateData[key];
       }
     });
 
     await template.save();
+    const responseTemplate = await getTemplateDetails(template.toObject());
+
+    return { template: responseTemplate };
   },
 };
 
@@ -186,6 +229,7 @@ const validateTemplateData = (data, isCreate = false) => {
   const {
     title,
     destination,
+    background,
     tripType,
     members = 1,
     vihicle,
@@ -201,9 +245,10 @@ const validateTemplateData = (data, isCreate = false) => {
       !startDate ||
       !endDate ||
       !budget ||
-      !tripType ||
       !vihicle ||
-      !destination)
+      !destination ||
+      !background ||
+      !tripType)
   ) {
     throwError("TEM-016");
   }
@@ -251,6 +296,48 @@ const validateTemplateData = (data, isCreate = false) => {
       }
     }
   }
+};
+
+// Hàm dùng chung để lấy thông tin chi tiết của template
+const getTemplateDetails = async (template) => {
+  if (!template) {
+    throwError("TEM-005");
+  }
+
+  // Lấy thông tin tripType
+  const tripTypeData = await tripTypeModel.findById(template.tripType).lean();
+  if (!tripTypeData) {
+    throwError("TEM-026");
+  }
+
+  // Lấy thông tin background
+  const backgroundTemplateData = await backgroundsTemplateModel
+    .findById(template.background)
+    .lean();
+  if (!backgroundTemplateData) {
+    throwError("TEM-025");
+  }
+
+  // Tạo bản sao mới của template để response
+  const responseTemplate = {
+    ...template, // Sao chép dữ liệu từ template gốc
+    tripType: {
+      _id: tripTypeData._id,
+      name: tripTypeData.name,
+    },
+    background: {
+      _id: backgroundTemplateData._id,
+      url: backgroundTemplateData.background.url,
+      id: backgroundTemplateData.background.id,
+    },
+  };
+
+  // Xóa các field không cần thiết
+  delete responseTemplate.backgroundId;
+  delete responseTemplate.tripTypeId;
+  delete responseTemplate.packId;
+
+  return responseTemplate;
 };
 
 module.exports = TemplateService;

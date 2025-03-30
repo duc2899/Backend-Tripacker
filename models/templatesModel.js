@@ -2,19 +2,20 @@ const mongoose = require("mongoose");
 
 const templatesSchema = new mongoose.Schema(
   {
-    packId: {
+    pack: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Packs",
       required: true,
     },
-    userId: {
+    user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Users",
       required: true,
     },
     title: {
       type: String,
-      maxlength: 100, // Added maxlength
+      maxlength: 100,
+      default: "", // Added maxlength
     },
     startDate: {
       type: String,
@@ -29,16 +30,19 @@ const templatesSchema = new mongoose.Schema(
       require: true,
     },
     tripType: {
-      type: String,
-      maxlength: 50, // Added maxlength
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "tripTypes",
+      required: true,
     },
     vihicle: {
       type: String,
-      maxlength: 50, // Added maxlength
+      maxlength: 50,
+      default: "", // Added maxlength
     },
     destination: {
       type: String,
-      maxlength: 100, // Added maxlength
+      maxlength: 100,
+      default: "", // Added maxlength
     },
     members: Number,
     listMembers: [
@@ -62,20 +66,23 @@ const templatesSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    previewImage: {
-      id: {
-        type: String,
-      },
-      url: {
-        type: String,
-      },
+    background: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "bgTemplate",
+      required: true,
     },
     healthNotes: {
       type: String,
       maxlength: 100,
+      default: "",
     },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
+    description: {
+      type: String,
+      maxlength: 200,
+      default: "", // Added maxlength
+    },
   },
   { timestamps: true }
 );

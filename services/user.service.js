@@ -3,8 +3,10 @@ const path = require("path");
 
 const { MAX_SOCIAL_NETWORKS } = require("../config/constant");
 const User = require("../models/userModel");
+const Template = require("../models/templatesModel.js");
 const cloudinary = require("../config/cloudinary.js");
 const throwError = require("../utils/throwError");
+
 const Userservice = {
   async updateUser(userId, updateData) {
     const { fullName, about, socialNetwork, gender, birthDay } = updateData;
@@ -103,6 +105,16 @@ const Userservice = {
     } catch (error) {
       throw error;
     }
+  },
+
+  async getTemplateOwner(userId) {
+    const templates = await Template.find({ user: userId })
+      .populate("tripType", "name")
+      .populate("background", "background")
+      .select("title destination description members createdAt buget _id")
+      .lean();
+
+    return templates;
   },
 };
 

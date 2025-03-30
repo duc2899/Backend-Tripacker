@@ -47,6 +47,20 @@ exports.getUserInformation = async (req, res, next) => {
   }
 };
 
+exports.getTemplateOwner = async (req, res, next) => {
+  try {
+    const user = await userService.getTemplateOwner(req.user.userId);
+
+    return res.status(200).json({
+      status: true,
+      message: "USER-005",
+      data: user,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.upateAvatar = async (req, res, next) => {
   try {
     if (!req.file) {
