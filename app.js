@@ -20,9 +20,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: isDevelopment
-      ? process.env.DEV_ALLOW_URL
-      : process.env.PRODUCTION_ALLOW_URL,
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })

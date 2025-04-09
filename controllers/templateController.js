@@ -24,6 +24,21 @@ exports.getSuggest = async (req, res, next) => {
   }
 };
 
+exports.getSuggestActivity = async (req, res, next) => {
+  try {
+    const result = await templateService.getSuggestActivityFromAI(
+      req.params.templateId,
+      req.user.userId
+    );
+    return res.status(200).json({
+      data: result,
+      message: "TEM-002",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.getTemplate = async (req, res, next) => {
   try {
     const result = await templateService.getTemplate(req.params.templateId);
@@ -71,6 +86,18 @@ exports.updateInforTemplate = async (req, res, next) => {
 exports.getSearchGoogle = async (req, res, next) => {
   try {
     const result = await templateService.getSearchGoogle();
+    return res.status(200).json({
+      message: "TEM-005",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.searchTemplates = async (req, res, next) => {
+  try {
+    const result = await templateService.searchTemplates(req);
     return res.status(200).json({
       message: "TEM-005",
       data: result,

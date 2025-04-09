@@ -23,9 +23,7 @@ exports.login = async (req, res, next) => {
     return res.status(200).json({
       status: true,
       message: "AUTH-012",
-      data: {
-        userId: result,
-      },
+      data: result,
     });
   } catch (error) {
     next(error);

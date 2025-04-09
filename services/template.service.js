@@ -1,3 +1,4 @@
+const haversine = require("haversine-distance");
 const PackModel = require("../models/packModel");
 const TemplateModel = require("../models/templatesModel");
 const DefaultItemModel = require("../models/defaultItemsModel");
@@ -32,10 +33,11 @@ const TemplateService = {
       budget,
       members,
       vihicle,
-      destination,
       listMembers,
       healthNotes,
       description,
+      from,
+      to,
     } = templateData;
 
     // Thêm người tạo vào danh sách thành viên
@@ -68,7 +70,11 @@ const TemplateService = {
       })),
     });
     await pack.save();
-
+    const distanceKm =
+      haversine(
+        { lat: from.lat, longitude: from.lon },
+        { latitude: to.lat, longitude: to.lon }
+      ) / 1000;
     // Tạo template mới
     const newTemplate = await TemplateModel.create({
       title,
@@ -78,13 +84,15 @@ const TemplateService = {
       members,
       vihicle,
       tripType,
-      destination,
+      distanceKm,
       listMembers,
       healthNotes,
       background,
       pack: pack._id,
       description,
-      user: userId,
+      owner: userId,
+      from,
+      to,
     });
 
     // Lấy thông tin chi tiết template
@@ -156,7 +164,7 @@ const TemplateService = {
 
     const template = await TemplateModel.findOne({
       _id: templateId,
-      userId,
+      user: userId,
     }).lean();
     if (!template) {
       throwError("TEM-012");
@@ -197,7 +205,10 @@ const TemplateService = {
   async updateInforTemplate(data, userId) {
     const { templateId, updateData } = data;
     // Kiểm tra template có tồn tại không
-    const template = await TemplateModel.findOne({ _id: templateId, userId });
+    const template = await TemplateModel.findOne({
+      _id: templateId,
+      user: userId,
+    });
     if (!template) {
       throwError("TEM-015");
     }
@@ -223,12 +234,139 @@ const TemplateService = {
 
     return { template: responseTemplate };
   },
+
+  async getSuggestActivityFromAI(templateId, userId) {
+    const template = await TemplateModel.findOne({
+      _id: templateId,
+      user: userId,
+    })
+      .populate("tripType")
+      .lean();
+    if (!template) {
+      throwError("TEM-015");
+    }
+
+    const { destination, startDate, endDate, budget, members, vihicle } =
+      template;
+    const tripType = template.tripType.name;
+
+    const prompt = `Tôi sẽ đi ${destination} từ ${startDate} đến ${endDate}, với ngân sách ${budget}đ cho ${members} người.  
+    Loại chuyến đi: ${tripType}, phương tiện: ${vihicle}
+    Hãy gợi ý cho tôi:  
+    1. Các địa điểm tham quan & hoạt động thú vị.  
+    2. Địa điểm ăn uống.  
+    3. Chỗ nghỉ ngơi.  
+    Trả về JSON với định dạng:  
+    {
+      "activity": [
+        {
+          "name": "Tên địa điểm",
+          "description": "Mô tả ngắn",
+          "activities": ["Hoạt động 1", "Hoạt động 2"],
+          "cost": "100.000đ/người"
+        }
+      ],
+      "food": [
+        {
+          "name": "Tên quán ăn",
+          "description": "Mô tả ngắn",
+          "specialties": ["Món đặc trưng 1", "Món đặc trưng 2"],
+          "cost": "150.000đ/người"
+        }
+      ],
+      "accommodation": [
+        {
+          "name": "Tên khách sạn/nhà nghỉ",
+          "description": "Mô tả ngắn",
+          "amenities": ["Tiện ích 1", "Tiện ích 2"],
+          "cost": "500.000đ/đêm"
+        }
+      ]
+    }`;
+
+    const aiResponse = await callAI(prompt);
+    const cleanedResponse = aiResponse.replace(/```json|```/g, "").trim();
+
+    // Chuyển đổi chuỗi JSON thành đối tượng JavaScript
+    return JSON.parse(cleanedResponse);
+  },
+
+  async searchTemplates(req) {
+    const { page = 1, limit = 10, query } = req.query;
+    const skip = (page - 1) * limit;
+
+    const pipeline = [];
+
+    if (query) {
+      pipeline.push(
+        {
+          $search: {
+            index: "search_name",
+            text: {
+              query: query,
+              path: "to.name",
+              fuzzy: {},
+            },
+          },
+        },
+        {
+          $match: {
+            isPublic: true,
+          },
+        }
+      );
+    } else {
+      pipeline.push({
+        $match: {
+          isPublic: true,
+        },
+      });
+    }
+
+    pipeline.push(
+      { $sort: { "to.name": 1 } },
+      { $skip: skip },
+      { $limit: parseInt(limit) }
+    );
+
+    const countPipeline = query
+      ? [
+          {
+            $search: {
+              index: "search_name",
+              text: {
+                query: query,
+                path: "to.name",
+                fuzzy: {},
+              },
+            },
+          },
+          { $match: { isPublic: true } },
+          { $count: "total" },
+        ]
+      : [{ $match: { isPublic: true } }, { $count: "total" }];
+
+    const [templates, countResult] = await Promise.all([
+      TemplateModel.aggregate(pipeline),
+      TemplateModel.aggregate(countPipeline),
+    ]);
+
+    const total = countResult.length > 0 ? countResult[0].total : 0;
+
+    return {
+      data: templates,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / limit),
+      isLastPage: page * limit >= total,
+    };
+  },
 };
 
 const validateTemplateData = (data, isCreate = false) => {
   const {
     title,
-    destination,
     background,
     tripType,
     members = 1,
@@ -237,6 +375,8 @@ const validateTemplateData = (data, isCreate = false) => {
     endDate,
     budget,
     listMembers,
+    from,
+    to,
   } = data;
 
   if (
@@ -246,11 +386,20 @@ const validateTemplateData = (data, isCreate = false) => {
       !endDate ||
       !budget ||
       !vihicle ||
-      !destination ||
       !background ||
-      !tripType)
+      !tripType ||
+      !from ||
+      !to)
   ) {
     throwError("TEM-016");
+  }
+
+  if (from && (!from.name || !from.lat || !from.lon)) {
+    throwError("TEM-027");
+  }
+
+  if (to && (!to.name || !to.lat || !to.lon)) {
+    throwError("TEM-027");
   }
   if (members <= 0) {
     throwError("TEM-017");

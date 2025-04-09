@@ -7,7 +7,18 @@ const templatesSchema = new mongoose.Schema(
       ref: "Packs",
       required: true,
     },
-    user: {
+    from: {
+      name: { type: String, required: true },
+      lat: { type: Number, required: true },
+      lon: { type: Number, required: true },
+    },
+    to: {
+      name: { type: String, required: true },
+      lat: { type: Number, required: true },
+      lon: { type: Number, required: true },
+    },
+    distanceKm: Number,
+    owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Users",
       required: true,
@@ -37,11 +48,6 @@ const templatesSchema = new mongoose.Schema(
     vihicle: {
       type: String,
       maxlength: 50,
-      default: "", // Added maxlength
-    },
-    destination: {
-      type: String,
-      maxlength: 100,
       default: "", // Added maxlength
     },
     members: Number,

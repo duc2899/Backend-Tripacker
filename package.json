@@ -29,6 +29,7 @@
     "express-validator": "^7.2.1",
     "google-auth-library": "^9.15.1",
     "googleapis": "^148.0.0",
+    "haversine-distance": "^1.2.3",
     "helmet": "^8.1.0",
     "http": "0.0.1-security",
     "ioredis": "^5.6.0",

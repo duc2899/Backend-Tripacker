@@ -123,7 +123,10 @@ const AuthService = {
       maxAge: MAX_AGE_COOKIE,
     });
 
-    return userDoc._id;
+    return {
+      _id: userDoc._id,
+      access_token: token,
+    };
   },
 
   async verifyEmail(data, res) {

@@ -23,9 +23,11 @@ router.get(
 );
 
 router.get(
-  "/getSearchGoogle",
+  "/getSuggestActivity/:templateId",
   authMiddleware,
-  templateController.getSearchGoogle
+  templateController.getSuggestActivity
 );
+
+router.get("/searchTemplates", templateController.searchTemplates);
 
 module.exports = router;
