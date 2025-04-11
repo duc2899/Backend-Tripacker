@@ -1,7 +1,10 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const { TIME_VERIFY_ACCOUNT } = require("../config/constant");
+const {
+  TIME_VERIFY_ACCOUNT,
+  TIME_CHANGE_PASSWORD,
+} = require("../config/constant");
 
 const userSchema = new mongoose.Schema(
   {
@@ -22,6 +25,10 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
+    },
+    phoneNumber: {
+      type: String,
+      default: "",
     },
     avatar: {
       url: { type: String, default: "" },
@@ -62,6 +69,12 @@ const userSchema = new mongoose.Schema(
     },
     verifyToken: String, // Mã xác thực
     verifyTokenExpires: Date, // Thời gian hết hạn mã xác thực
+    passwordResetToken: {
+      type: String,
+    },
+    passwordResetExpires: {
+      type: Date,
+    },
     createdAt: {
       type: Date,
       default: Date.now,
@@ -100,8 +113,19 @@ userSchema.methods.isCorrectPassword = async function (
 userSchema.methods.createVerifyToken = function () {
   const token = crypto.randomBytes(32).toString("hex");
   this.verifyToken = crypto.createHash("sha256").update(token).digest("hex");
-  this.verifyTokenExpires = Date.now() + TIME_VERIFY_ACCOUNT;
+  this.verifyTokenExpires = Date.now() + TIME_VERIFY_ACCOUNT * 60 * 1000;
   return token;
+};
+
+userSchema.methods.createPasswordResetToken = function () {
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  this.passwordResetToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+  this.passwordResetExpires = Date.now() + TIME_CHANGE_PASSWORD * 60 * 1000;
+  // You need to save the user object after modifying it
+  return resetToken;
 };
 
 const User = mongoose.model("Users", userSchema);

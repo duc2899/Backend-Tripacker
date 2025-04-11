@@ -1,8 +1,9 @@
 /**
  * @param {string} name
  * @param {string} verifyUrl
+ * @param {number} expireIn
  */
-const verifyEmailTemplate = (name, verifyUrl) => {
+const verifyEmailTemplate = (name, verifyUrl, expireIn) => {
   return `
  <!DOCTYPE html>
 <html lang="vi">
@@ -55,6 +56,10 @@ const verifyEmailTemplate = (name, verifyUrl) => {
                     margin-top: 30px;
                     transition: background-color 0.3s ease;
             }
+           .warning {
+              color: #dc3545;
+              font-weight: bold;
+            }
             .btn:hover {
                     background-color: #218838;
             }
@@ -73,6 +78,7 @@ const verifyEmailTemplate = (name, verifyUrl) => {
             <h2>Chào ${name},</h2>
             <p>Cảm ơn bạn đã đăng ký tài khoản trên Tripacker! Để hoàn tất quá trình đăng ký, vui lòng xác thực email của bạn bằng cách nhấn vào nút bên dưới:</p>
             <a href="${verifyUrl}" class="btn">Xác Thực Tài Khoản</a>
+              <p class="warning">Lưu ý: Liên kết này sẽ hết hạn sau ${expireIn} phút. Vui lòng không chia sẻ email này với bất kỳ ai.</p>
             <p>Nếu bạn không đăng ký tài khoản Tripacker, vui lòng bỏ qua email này. Chúng tôi rất tiếc vì sự bất tiện này.</p>
             <div class="footer">
                     <p>Trân trọng,</p>

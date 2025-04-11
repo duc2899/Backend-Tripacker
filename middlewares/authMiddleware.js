@@ -28,7 +28,7 @@ const authMiddleware = async (req, res, next) => {
 
     const user = await User.findById(
       decoded.userId,
-      "isDisabled fullName email"
+      "isDisabled verified fullName email"
     ).lean();
 
     if (!user) {
@@ -38,6 +38,13 @@ const authMiddleware = async (req, res, next) => {
     if (user.isDisabled) {
       return res.status(403).json({
         message: "AUTH-015",
+        status: false,
+      });
+    }
+
+    if (!user.verified) {
+      return res.status(403).json({
+        message: "AUTH-020",
         status: false,
       });
     }

@@ -2,10 +2,7 @@ const userService = require("../services/user.service.js");
 
 exports.updateUser = async (req, res, next) => {
   try {
-    const userId = req.user.userId;
-    const updateData = req.body;
-
-    const updatedUser = await userService.updateUser(userId, updateData);
+    const updatedUser = await userService.updateUser(req);
 
     return res.status(200).json({
       status: true,
@@ -17,23 +14,23 @@ exports.updateUser = async (req, res, next) => {
   }
 };
 
-exports.getMe = async (req, res, next) => {
-  try {
-    const user = await userService.getMe(req.user.userId);
+// exports.getMe = async (req, res, next) => {
+//   try {
+//     const user = await userService.getMe(req.user.userId);
 
-    return res.status(200).json({
-      status: true,
-      message: "USER-004",
-      data: user,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+//     return res.status(200).json({
+//       status: true,
+//       message: "USER-004",
+//       data: user,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
 exports.getUserInformation = async (req, res, next) => {
   try {
-    const user = await userService.getUserInformation(req.user.userId);
+    const user = await userService.getUserInformation(req);
 
     return res.status(200).json({
       status: true,
@@ -47,7 +44,7 @@ exports.getUserInformation = async (req, res, next) => {
 
 exports.getTemplateOwner = async (req, res, next) => {
   try {
-    const user = await userService.getTemplateOwner(req.user.userId);
+    const user = await userService.getTemplateOwner(req);
 
     return res.status(200).json({
       status: true,
@@ -65,10 +62,7 @@ exports.upateAvatar = async (req, res, next) => {
       return res.status(400).json({ message: "USER-007" });
     }
 
-    const updatedUser = await userService.updateAvatar(
-      req.user.userId,
-      req.file
-    );
+    const updatedUser = await userService.updateAvatar(req);
 
     return res.status(200).json({
       status: true,

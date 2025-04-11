@@ -1,5 +1,9 @@
 const throwError = require("./throwError");
 
+/**
+ * @param {string} birthDay
+ */
+
 // utils/validator.js
 const checkBirthDay = (birthDay) => {
   // Kiểm tra định dạng MM/DD/YYYY
@@ -25,7 +29,60 @@ const checkBirthDay = (birthDay) => {
 
   return true;
 };
+/**
+ * @param {string} phoneNumber
+ */
+const checkPhoneNumberVN = (phoneNumber) => {
+  const regex = /^(?:\+84|0)(3[2-9]|5[2689]|7[0-9]|8[1-9]|9[0-9])\d{7}$/;
+  if (!regex.test(phoneNumber)) {
+    throwError("USER-013");
+  }
+  return true;
+};
+
+/**
+ * Vừa làm sạch dữ liệu (sanitize) vừa validate trường bắt buộc.
+ * @param {Object} data - Dữ liệu đầu vào (req.body)
+ * @param {Array} requiredFields - Danh sách trường bắt buộc
+ * @param {Object} options - Tùy chọn sanitize (trim, removeNull)
+ * @returns {Object} Dữ liệu đã làm sạch
+ * @throws Error nếu thiếu trường bắt buộc
+ */
+const sanitizeAndValidate = (
+  data,
+  requiredFields = [],
+  options = { trim: true, removeNull: true }
+) => {
+  // 1. Làm sạch dữ liệu
+  const sanitized = { ...data };
+
+  for (const key in sanitized) {
+    // Loại bỏ null/undefined nếu enabled
+    if (options.removeNull && sanitized[key] == null) {
+      delete sanitized[key];
+      continue;
+    }
+
+    // Trim string nếu enabled
+    if (options.trim && typeof sanitized[key] === "string") {
+      sanitized[key] = sanitized[key].trim();
+    }
+  }
+
+  // 2. Kiểm tra trường bắt buộc
+  const missingFields = requiredFields.filter(
+    (field) => !(field in sanitized) || sanitized[field] === ""
+  );
+
+  if (missingFields.length > 0) {
+    throwError("AUTH-026");
+  }
+
+  return sanitized;
+};
 
 module.exports = {
   checkBirthDay,
+  checkPhoneNumberVN,
+  sanitizeAndValidate,
 };

@@ -6,11 +6,20 @@ const User = require("../models/userModel");
 const Template = require("../models/templatesModel.js");
 const cloudinary = require("../config/cloudinary.js");
 const throwError = require("../utils/throwError");
-const { checkBirthDay } = require("../utils/index.js");
+const {
+  checkBirthDay,
+  checkPhoneNumberVN,
+  sanitizeAndValidate,
+} = require("../utils/index.js");
 
 const Userservice = {
-  async updateUser(userId, updateData) {
-    const { fullName, about, socialNetwork, gender, birthDay } = updateData;
+  async updateUser(req) {
+    const userId = req.user.userId;
+    const { fullName, about, socialNetwork, gender, birthDay, phoneNumber } =
+      sanitizeAndValidate(req.body, [], {
+        trim: true,
+        removeNull: true,
+      });
 
     // Validate socialNetwork links (max 3, must be valid URLs)
     if (socialNetwork && Array.isArray(socialNetwork)) {
@@ -26,7 +35,13 @@ const Userservice = {
         }
       }
     }
-    checkBirthDay(birthDay);
+    if (birthDay) {
+      checkBirthDay(birthDay);
+    }
+
+    if (phoneNumber) {
+      checkPhoneNumberVN(phoneNumber);
+    }
 
     // Prepare update object
     const updateObject = {};
@@ -35,30 +50,46 @@ const Userservice = {
     if (socialNetwork) updateObject.socialNetwork = socialNetwork;
     if (gender) updateObject.gender = gender;
     if (birthDay) updateObject.birthDay = birthDay;
+    if (phoneNumber) updateObject.phoneNumber = phoneNumber;
 
-    await User.findByIdAndUpdate(userId, updateObject, {
+    const updatedUser = await User.findByIdAndUpdate(userId, updateObject, {
       new: true,
       runValidators: true,
-    });
+      select:
+        "fullName avatar about gender socialNetwork _id email role createdAt birthDay phoneNumber",
+    }).lean(); // Convert to plain JavaScript object
 
-    return updateData;
+    if (!updatedUser) {
+      throwError("USER-014", 404); // User not found
+    }
+
+    return updatedUser;
   },
 
-  async getMe(userId) {
-    const user = await User.findById(userId).select("fullName avatar _id");
+  // async getMe(userId) {
+  //   const user = await User.findById(userId).select("fullName avatar _id");
+  //   return user;
+  // },
+
+  async getUserInformation(req) {
+    const { userId } = req.user;
+    const user = await User.findById(userId)
+      .select(
+        "fullName avatar about gender socialNetwork _id email role createdAt birthDay phoneNumber"
+      )
+      .lean();
     return user;
   },
 
-  async getUserInformation(userId) {
-    const user = await User.findById(userId).select(
-      "fullName avatar about gender socialNetwork _id email role createdAt birthDay"
-    );
-    return user;
-  },
-
-  async updateAvatar(userId, avatar) {
+  async updateAvatar(req) {
     try {
+      const { userId } = req.user;
+      const avatar = req.file;
+
       const user = await User.findById(userId);
+      if (!user) {
+        throwError("AUTH-014");
+      }
       // Nếu user đã có avatar trước đó, xóa avatar cũ trên Cloudinary
       if (user.avatar?.id) {
         await cloudinary.uploader.destroy(user.avatar.id);
@@ -88,11 +119,12 @@ const Userservice = {
     }
   },
 
-  async getTemplateOwner(userId) {
+  async getTemplateOwner(req) {
+    const { userId } = req.user;
     const templates = await Template.find({ user: userId })
       .populate("tripType", "name")
       .populate("background", "background")
-      .select("title destination description members createdAt buget _id")
+      .select("title description members createdAt buget _id")
       .lean();
 
     return templates;
