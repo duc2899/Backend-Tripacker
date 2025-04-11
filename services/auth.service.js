@@ -9,60 +9,71 @@ const mailServices = require("../utils/sendEmail");
 const redis = require("../config/redis.js");
 
 const { EXPIRED_TIME_TOKEN, MAX_AGE_COOKIE } = require("../config/constant");
+const { checkBirthDay } = require("../utils/index.js");
 
 const isDevelopment = process.env.NODE_ENV === "development";
 
 const AuthService = {
   async register(req, res) {
-    const { name, email, password } = req.body;
+    const { fullName, email, password, birthDay } = req.body;
 
-    if (!name || !email || !password) {
+    if (!email || !password || !fullName) {
       throwError("AUTH-001", 400);
-    }
-    if (/\s/.test(name)) {
-      throwError("AUTH-002", 400);
     }
 
     let user = await User.findOne({ email });
 
     if (user) {
       if (!user.verified) {
-        // Kiểm tra nếu token xác thực còn hạn
-        const isTokenValid =
-          user.verifyTokenExpires && user.verifyTokenExpires > Date.now();
+        // Cập nhật thông tin người dùng
+        user.fullName = fullName;
+        user.password = password;
 
-        if (isTokenValid) {
-          throwError("AUTH-003", 400);
+        if (birthDay) {
+          if (checkBirthDay(birthDay)) {
+            user.birthDay = birthDay;
+          }
         }
 
-        // Nếu token hết hạn, tạo lại token mới
-        user.name = name;
-        user.password = password;
-        const verifyToken = await user.createVerifyToken();
+        // Xử lý verify token
+        const isTokenValid =
+          user.verifyTokenExpires && user.verifyTokenExpires > Date.now();
+        const verifyToken = isTokenValid
+          ? user.verifyToken
+          : await user.createVerifyToken();
+
         await user.save();
 
-        // Gửi lại email xác thực
-        const verifyUrl = `${req.protocol}://${req.get(
-          "host"
-        )}/v1/api/auth/verify-email/${verifyToken}`;
-
-        mailServices.sendEmail({
-          to: email,
-          subject: "Xác thực tài khoản",
-          html: verifyEmailTemplate(name, verifyUrl),
-        });
+        // Gửi lại email nếu token mới
+        if (!isTokenValid) {
+          const verifyUrl = `${req.protocol}://${req.get(
+            "host"
+          )}/v1/api/auth/verify-email/${verifyToken}`;
+          mailServices.sendEmail({
+            to: email,
+            subject: "Xác thực tài khoản",
+            html: verifyEmailTemplate(fullName, verifyUrl),
+          });
+        }
 
         return res.status(200).json({
           status: true,
-          message: "AUTH-004",
+          message: isTokenValid ? "AUTH-003" : "AUTH-004",
         });
       }
-
       throwError("AUTH-006", 400);
     }
 
-    // Nếu không tìm thấy user, tạo mới
-    user = new User({ name, email, password });
+    // Validate birthDay cho user mới
+    if (birthDay) {
+      checkBirthDay(birthDay); // Sử dụng hàm chung
+    }
+
+    // Tạo user mới
+    user = new User({ fullName, email, password });
+    if (birthDay) {
+      user.birthDay = birthDay;
+    }
     const verifyToken = await user.createVerifyToken();
     await user.save();
 
@@ -70,11 +81,10 @@ const AuthService = {
     const verifyUrl = `${req.protocol}://${req.get(
       "host"
     )}/v1/api/auth/verify-email/${verifyToken}`;
-
     mailServices.sendEmail({
       to: email,
       subject: "Xác thực tài khoản",
-      html: verifyEmailTemplate(name, verifyUrl),
+      html: verifyEmailTemplate(fullName, verifyUrl),
     });
 
     return res.status(201).json({
@@ -84,18 +94,18 @@ const AuthService = {
   },
 
   async login(data, res) {
-    const { identifier, password } = data;
+    const { email, password } = data;
 
-    if (!identifier.trim() || !password.trim()) {
+    if (!email.trim() || !password.trim()) {
       throwError("AUTH-007");
     }
-    if (/\s/.test(identifier)) {
+    if (/\s/.test(email)) {
       throwError("AUTH-002");
     }
 
     const userDoc = await User.findOne({
-      $or: [{ email: identifier }, { name: identifier }],
-    }).select("+password");
+      email: email,
+    }).select("+password +_id");
 
     if (!userDoc) {
       throwError("AUTH-008");

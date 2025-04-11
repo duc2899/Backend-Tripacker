@@ -28,7 +28,7 @@ const authMiddleware = async (req, res, next) => {
 
     const user = await User.findById(
       decoded.userId,
-      "isDisabled name email"
+      "isDisabled fullName email"
     ).lean();
 
     if (!user) {
@@ -53,7 +53,7 @@ const authMiddleware = async (req, res, next) => {
 
     req.user = {
       ...decoded,
-      name: user.name,
+      fullName: user.fullName,
       email: user.email,
     };
     next();

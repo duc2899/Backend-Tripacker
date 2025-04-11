@@ -1,15 +1,10 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const { TIME_VERIFY_ACCOUNT } = require("../config/constant");
 
 const userSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-    },
     fullName: {
       type: String,
       trim: true,
@@ -105,7 +100,7 @@ userSchema.methods.isCorrectPassword = async function (
 userSchema.methods.createVerifyToken = function () {
   const token = crypto.randomBytes(32).toString("hex");
   this.verifyToken = crypto.createHash("sha256").update(token).digest("hex");
-  this.verifyTokenExpires = Date.now() + 5 * 60 * 1000; // 10 phút
+  this.verifyTokenExpires = Date.now() + TIME_VERIFY_ACCOUNT;
   return token;
 };
 

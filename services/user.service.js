@@ -6,6 +6,7 @@ const User = require("../models/userModel");
 const Template = require("../models/templatesModel.js");
 const cloudinary = require("../config/cloudinary.js");
 const throwError = require("../utils/throwError");
+const { checkBirthDay } = require("../utils/index.js");
 
 const Userservice = {
   async updateUser(userId, updateData) {
@@ -25,27 +26,7 @@ const Userservice = {
         }
       }
     }
-    const isValidDateFormat = (dateString) => {
-      const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
-      return regex.test(dateString);
-    };
-
-    if (birthDay) {
-      if (!isValidDateFormat(birthDay)) {
-        throwError("USER-010", 400, "INVALID_DATE_FORMAT");
-      }
-
-      const birthDate = new Date(birthDay);
-      const currentDate = new Date();
-
-      if (isNaN(birthDate.getTime())) {
-        throwError("USER-011", 400, "INVALID_DATE_VALUE");
-      }
-
-      if (birthDate >= currentDate) {
-        throwError("USER-012", 400, "FUTURE_DATE_NOT_ALLOWED");
-      }
-    }
+    checkBirthDay(birthDay);
 
     // Prepare update object
     const updateObject = {};
@@ -64,13 +45,13 @@ const Userservice = {
   },
 
   async getMe(userId) {
-    const user = await User.findById(userId).select("name avatar _id");
+    const user = await User.findById(userId).select("fullName avatar _id");
     return user;
   },
 
   async getUserInformation(userId) {
     const user = await User.findById(userId).select(
-      "name fullName avatar about gender socialNetwork _id email role createdAt birthDay"
+      "fullName avatar about gender socialNetwork _id email role createdAt birthDay"
     );
     return user;
   },

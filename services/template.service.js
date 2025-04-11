@@ -23,7 +23,7 @@ const TemplateService = {
   },
 
   async createTemplate(templateData, reqUser) {
-    const { userId, email, name } = reqUser;
+    const { userId, email, fullName } = reqUser;
     const {
       background,
       tripType,
@@ -42,7 +42,7 @@ const TemplateService = {
 
     // Thêm người tạo vào danh sách thành viên
     templateData.listMembers = templateData.listMembers || [];
-    templateData.listMembers.push({ email, name });
+    templateData.listMembers.push({ email, name: fullName });
 
     // Kiểm tra background có tồn tại trong model không
     const backgroundTemplate = await backgroundsTemplateModel.findById(
