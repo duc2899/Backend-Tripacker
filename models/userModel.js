@@ -119,13 +119,14 @@ userSchema.methods.createVerifyToken = function () {
 
 userSchema.methods.createPasswordResetToken = function () {
   const resetToken = crypto.randomBytes(32).toString("hex");
-  this.passwordResetToken = crypto
+  const hashesToken = crypto
     .createHash("sha256")
     .update(resetToken)
     .digest("hex");
+  this.passwordResetToken = hashesToken;
   this.passwordResetExpires = Date.now() + TIME_CHANGE_PASSWORD * 60 * 1000;
   // You need to save the user object after modifying it
-  return resetToken;
+  return hashesToken;
 };
 
 const User = mongoose.model("Users", userSchema);
