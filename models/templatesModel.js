@@ -61,6 +61,7 @@ const templatesSchema = new mongoose.Schema(
             },
             message: (props) => `Email (${props.value}) is invalid!`,
           },
+          default: "",
         },
         isRegistered: { type: Boolean, default: false },
         user: {
@@ -72,7 +73,7 @@ const templatesSchema = new mongoose.Schema(
           enum: ["edit", "view"],
           default: "view",
         },
-        name: String,
+        name: { type: String, default: "" },
       },
     ],
     isPublic: {

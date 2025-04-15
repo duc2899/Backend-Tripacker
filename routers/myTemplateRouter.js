@@ -8,6 +8,11 @@ router.get(
   authMiddleware,
   myTemplateController.getTripTimeLine
 );
+router.post(
+  "/updateTripTimeLine",
+  authMiddleware,
+  myTemplateController.updateTripTimeLine
+);
 
 router.post(
   "/createActivity",

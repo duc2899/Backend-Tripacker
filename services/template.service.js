@@ -1,5 +1,3 @@
-const haversine = require("haversine-distance");
-
 const PackModel = require("../models/packModel");
 const UserModel = require("../models/userModel");
 const TemplateModel = require("../models/templatesModel");
@@ -9,6 +7,12 @@ const TripTypeModel = require("../models/tripTypeModel");
 const { callAI } = require("./getSuggestAI");
 const throwError = require("../utils/throwError");
 const { validateTemplateData } = require("../validators/template.validator");
+const {
+  handleCreateListMembers,
+  handleCheckExitBackground,
+  handleCheckExitTripType,
+  handleCaculatorDistance,
+} = require("../validators/logic/template.logic");
 
 const TemplateService = {
   async getTemplate(templateId) {
@@ -45,52 +49,15 @@ const TemplateService = {
     // Kiểm tra dữ liệu
     await validateTemplateData(req.body);
 
-    // Lọc bỏ email của người tạo khỏi listMembers
-    const filteredListMembers = listMembers.filter(
-      (member) => member.email !== email
-    );
-
-    const existingUsers = await UserModel.find({
-      email: { $in: filteredListMembers.map((m) => m.email) },
-    }).select("_id email");
-
-    const emailToUserMap = new Map();
-    existingUsers.forEach((user) => {
-      emailToUserMap.set(user.email, user._id);
-    });
-
-    const membersToAdd = filteredListMembers.map((member) => {
-      const matchedUserId = emailToUserMap.get(member.email) || null;
-      return {
-        email: member.email,
-        name: member.name,
-        user: matchedUserId,
-        isRegistered: !!matchedUserId,
-        role: "view",
-      };
-    });
-
-    membersToAdd.push({
+    const membersToAdd = await handleCreateListMembers(
+      listMembers || [],
       email,
-      name: fullName,
-      user: userId,
-      isRegistered: true,
-      role: "edit",
-    });
-
-    // Kiểm tra background có tồn tại trong model không
-    const backgroundTemplate = await BackgroundsTemplateModel.findById(
-      background
+      fullName,
+      userId
     );
-    if (!backgroundTemplate) {
-      throwError("TEM-025");
-    }
 
-    // Kiểm tra tripType có tồn tại trong model không
-    const tripTypeTemplate = await TripTypeModel.findById(tripType);
-    if (!tripTypeTemplate) {
-      throwError("TEM-026");
-    }
+    await handleCheckExitBackground(background);
+    await handleCheckExitTripType(tripType);
 
     // Lấy danh sách items mặc định
     const defaultItems = await DefaultItemModel.find().lean();
@@ -103,11 +70,6 @@ const TemplateService = {
     });
     await pack.save();
 
-    const distanceKm =
-      haversine(
-        { lat: from.lat, longitude: from.lon },
-        { latitude: to.lat, longitude: to.lon }
-      ) / 1000;
     // Tạo template mới
     const newTemplate = await TemplateModel.create({
       title,
@@ -117,7 +79,7 @@ const TemplateService = {
       members,
       vihicle,
       tripType,
-      distanceKm,
+      distanceKm: handleCaculatorDistance(from, to),
       listMembers: membersToAdd,
       healthNotes,
       background,

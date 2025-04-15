@@ -10,11 +10,21 @@ const throwError = require("../utils/throwError");
 const { sanitizeAndValidate } = require("../utils");
 const { callAI } = require("./getSuggestAI");
 const { isValidEmail } = require("../utils/validateEmail");
+const UserModel = require("../models/userModel");
 const {
   validateCreatedTripActivity,
   validateEditTripActivity,
   validateDeleteTripActivity,
 } = require("../validators/tripActivity.validator");
+const {
+  validateUpdateTripTimeLine,
+} = require("../validators/template.validator");
+const {
+  handleListMembersUpdate,
+  handleCaculatorDistance,
+  handleCheckExitBackground,
+  handleCheckExitTripType,
+} = require("../validators/logic/template.logic");
 
 const MyTemplateService = {
   async getTripTimeLine(req) {
@@ -24,7 +34,7 @@ const MyTemplateService = {
     const template = await TemplateModel.findById(templateId)
       .populate("owner tripType background")
       .select(
-        "owner from to title startDate endDate budget tripType vihicle listMembers background description"
+        "owner from to title startDate endDate budget tripType vihicle listMembers background description distanceKm isPublic"
       )
       .lean();
 
@@ -65,28 +75,59 @@ const MyTemplateService = {
   },
 
   async updateTripTimeLine(req) {
+    const { email } = req.user;
     const { templateId } = req.body;
     // Kiểm tra template có tồn tại không
     const template = await TemplateModel.findById(templateId);
+    const updateData = req.body;
 
-    // Kiểm tra và validate dữ liệu
-    validateTemplateData(updateData);
+    // 2. Kiểm tra và validate dữ liệu
+    await validateUpdateTripTimeLine(updateData);
 
-    // Cập nhật template với những trường có dữ liệu
-    Object.keys(updateData).forEach((key) => {
-      if (
-        updateData[key] !== undefined &&
-        key !== "packId" &&
-        key !== "user" &&
-        key !== "tripTypeId" &&
-        key !== "backgroundId"
-      ) {
+    // 3. Xử lý listMembers (nếu có)
+    let membersToAdd = [];
+    if (updateData.listMembers) {
+      membersToAdd = await handleListMembersUpdate(
+        updateData.listMembers,
+        template.listMembers,
+        email
+      );
+      template.listMembers = template.listMembers.concat(membersToAdd);
+    }
+
+    if (updateData.to && updateData.from) {
+      template.distanceKm = handleCaculatorDistance(
+        updateData.from,
+        updateData.to
+      );
+    }
+
+    await handleCheckExitBackground(updateData.background);
+    await handleCheckExitTripType(updateData.tripType);
+
+    const fieldsToUpdate = [
+      "tripType",
+      "title",
+      "location",
+      "startDate",
+      "endDate",
+      "budget",
+      "members",
+      "vihicle",
+      "healthNotes",
+      "description",
+      "from",
+      "to",
+    ];
+
+    fieldsToUpdate.forEach((key) => {
+      if (updateData[key]) {
         template[key] = updateData[key];
       }
     });
-
+    return template;
     await template.save();
-    const responseTemplate = await getTemplateDetails(template.toObject());
+    const responseTemplate = await template.toObject();
 
     return { template: responseTemplate };
   },
