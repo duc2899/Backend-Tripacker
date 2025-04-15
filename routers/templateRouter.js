@@ -22,12 +22,11 @@ router.get(
   templateController.getTemplate
 );
 
-router.get(
-  "/getSuggestActivity/:templateId",
-  authMiddleware,
-  templateController.getSuggestActivity
-);
-
 router.get("/searchTemplates", templateController.searchTemplates);
+router.get(
+  "/searchUsersByEmail",
+  authMiddleware,
+  templateController.searchUsersByEmail
+);
 
 module.exports = router;

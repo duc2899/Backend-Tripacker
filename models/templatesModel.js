@@ -8,12 +8,12 @@ const templatesSchema = new mongoose.Schema(
       required: true,
     },
     from: {
-      name: { type: String, required: true },
+      destination: { type: String, required: true },
       lat: { type: Number, required: true },
       lon: { type: Number, required: true },
     },
     to: {
-      name: { type: String, required: true },
+      destination: { type: String, required: true },
       lat: { type: Number, required: true },
       lon: { type: Number, required: true },
     },
@@ -62,10 +62,17 @@ const templatesSchema = new mongoose.Schema(
             message: (props) => `Email (${props.value}) is invalid!`,
           },
         },
-        name: {
-          type: String,
-          maxlength: 50, // Added maxlength
+        isRegistered: { type: Boolean, default: false },
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Users",
         },
+        role: {
+          type: String,
+          enum: ["edit", "view"],
+          default: "view",
+        },
+        name: String,
       },
     ],
     isPublic: {
@@ -92,5 +99,5 @@ const templatesSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-module.exports = mongoose.model("templates", templatesSchema);
+const Template = mongoose.model("templates", templatesSchema);
+module.exports = Template;

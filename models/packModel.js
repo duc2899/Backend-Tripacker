@@ -15,4 +15,5 @@ const packSchema = new mongoose.Schema({
   ],
 });
 
-module.exports = mongoose.model("Packs", packSchema);
+const Pack = mongoose.model("Packs", packSchema);
+module.exports = Pack;

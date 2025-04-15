@@ -24,11 +24,7 @@ const AuthService = {
   async register(req, res) {
     const { fullName, email, password, birthDay } = sanitizeAndValidate(
       req.body,
-      ["email", "password", "fullName"],
-      {
-        trim: true,
-        removeNull: true,
-      }
+      ["email", "password", "fullName"]
     );
 
     let user = await User.findOne({ email });
@@ -110,6 +106,10 @@ const AuthService = {
       {
         trim: true,
         removeNull: true,
+      },
+      {
+        email: "string",
+        password: "string",
       }
     );
 

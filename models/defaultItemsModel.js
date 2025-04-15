@@ -4,4 +4,5 @@ const defaultItemsSchema = new mongoose.Schema({
   items: [{ type: String, required: true }],
 });
 
-module.exports = mongoose.model("defaultItems", defaultItemsSchema);
+const DefaultItem = mongoose.model("defaultItems", defaultItemsSchema);
+module.exports = DefaultItem;

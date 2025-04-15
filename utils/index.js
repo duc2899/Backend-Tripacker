@@ -51,19 +51,18 @@ const checkPhoneNumberVN = (phoneNumber) => {
 const sanitizeAndValidate = (
   data,
   requiredFields = [],
-  options = { trim: true, removeNull: true }
+  options = { trim: true, removeNull: true },
+  fieldTypes = {} // Ví dụ: { username: "string", isAdmin: "boolean" }
 ) => {
-  // 1. Làm sạch dữ liệu
   const sanitized = { ...data };
 
+  // 1. Làm sạch dữ liệu
   for (const key in sanitized) {
-    // Loại bỏ null/undefined nếu enabled
     if (options.removeNull && sanitized[key] == null) {
       delete sanitized[key];
       continue;
     }
 
-    // Trim string nếu enabled
     if (options.trim && typeof sanitized[key] === "string") {
       sanitized[key] = sanitized[key].trim();
     }
@@ -76,6 +75,20 @@ const sanitizeAndValidate = (
 
   if (missingFields.length > 0) {
     throwError("AUTH-026");
+  }
+
+  for (const key in fieldTypes) {
+    const value = sanitized[key];
+
+    // Chỉ kiểm tra nếu field có tồn tại và khác null/undefined
+    if (value) {
+      const expectedType = fieldTypes[key];
+      const actualType = Array.isArray(value) ? "array" : typeof value;
+
+      if (actualType !== expectedType) {
+        throwError("AUTH-030");
+      }
+    }
   }
 
   return sanitized;

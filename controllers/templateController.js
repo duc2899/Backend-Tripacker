@@ -2,7 +2,7 @@ const templateService = require("../services/template.service");
 
 exports.createTemplate = async (req, res, next) => {
   try {
-    const result = await templateService.createTemplate(req.body, req.user);
+    const result = await templateService.createTemplate(req);
     return res.status(201).json({
       message: "TEM-001",
       data: result,
@@ -15,21 +15,6 @@ exports.createTemplate = async (req, res, next) => {
 exports.getSuggest = async (req, res, next) => {
   try {
     const result = await templateService.getSuggestAI(req.body);
-    return res.status(200).json({
-      data: result,
-      message: "TEM-002",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-exports.getSuggestActivity = async (req, res, next) => {
-  try {
-    const result = await templateService.getSuggestActivityFromAI(
-      req.params.templateId,
-      req.user.userId
-    );
     return res.status(200).json({
       data: result,
       message: "TEM-002",
@@ -83,9 +68,9 @@ exports.updateInforTemplate = async (req, res, next) => {
   }
 };
 
-exports.getSearchGoogle = async (req, res, next) => {
+exports.searchTemplates = async (req, res, next) => {
   try {
-    const result = await templateService.getSearchGoogle();
+    const result = await templateService.searchTemplates(req);
     return res.status(200).json({
       message: "TEM-005",
       data: result,
@@ -95,9 +80,9 @@ exports.getSearchGoogle = async (req, res, next) => {
   }
 };
 
-exports.searchTemplates = async (req, res, next) => {
+exports.searchUsersByEmail = async (req, res, next) => {
   try {
-    const result = await templateService.searchTemplates(req);
+    const result = await templateService.searchUsersByEmail(req);
     return res.status(200).json({
       message: "TEM-005",
       data: result,
