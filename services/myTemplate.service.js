@@ -1,20 +1,15 @@
 const axios = require("axios");
 
-const PackModel = require("../models/packModel");
 const TemplateModel = require("../models/templatesModel");
-const DefaultItemModel = require("../models/defaultItemsModel");
 const TripActivityModel = require("../models/tripActivityModel");
-const MemberTasksModel = require("../models/memberTasksModel");
-const TripTypeModel = require("../models/tripTypeModel");
 const throwError = require("../utils/throwError");
 const { sanitizeAndValidate } = require("../utils");
 const { callAI } = require("./getSuggestAI");
 const { isValidEmail } = require("../utils/validateEmail");
-const UserModel = require("../models/userModel");
 const {
-  validateCreatedTripActivity,
-  validateEditTripActivity,
-  validateDeleteTripActivity,
+  createTripActivitySchema,
+  editTripActivitySchema,
+  deleteTripActivitySchema,
 } = require("../validators/tripActivity.validator");
 const {
   validateUpdateTripTimeLine,
@@ -24,12 +19,12 @@ const {
   handleCaculatorDistance,
   handleCheckExitBackground,
   handleCheckExitTripType,
-} = require("../validators/logic/template.logic");
+  handleCheckStartAndEndDate,
+} = require("../logics/template.logic");
 
 const MyTemplateService = {
-  async getTripTimeLine(req) {
-    const { userId } = req.user;
-    const { templateId } = req.params;
+  async getTripTimeLine(reqUser, templateId) {
+    const { userId } = reqUser;
 
     const template = await TemplateModel.findById(templateId)
       .populate("owner tripType background")
@@ -74,12 +69,10 @@ const MyTemplateService = {
     // -------------------- Get memberTaks -----------------
   },
 
-  async updateTripTimeLine(req) {
-    const { email } = req.user;
-    const { templateId } = req.body;
+  async updateTripTimeLine(reqUser, updateData) {
+    const { email } = reqUser;
     // Kiểm tra template có tồn tại không
-    const template = await TemplateModel.findById(templateId);
-    const updateData = req.body;
+    const template = await TemplateModel.findById(updateData.templateId);
 
     // 2. Kiểm tra và validate dữ liệu
     await validateUpdateTripTimeLine(updateData);
@@ -102,6 +95,15 @@ const MyTemplateService = {
       );
     }
 
+    if (updateData.startDate && updateData.endDate) {
+      await handleCheckStartAndEndDate(
+        updateData.startDate,
+        updateData.endDate
+      );
+      template.startDate = updateData.startDate;
+      template.endDate = updateData.endDate;
+    }
+
     await handleCheckExitBackground(updateData.background);
     await handleCheckExitTripType(updateData.tripType);
 
@@ -109,9 +111,9 @@ const MyTemplateService = {
       "tripType",
       "title",
       "location",
-      "startDate",
-      "endDate",
+      "background",
       "budget",
+      "tripType",
       "members",
       "vihicle",
       "healthNotes",
@@ -125,127 +127,140 @@ const MyTemplateService = {
         template[key] = updateData[key];
       }
     });
-    return template;
     await template.save();
     const responseTemplate = await template.toObject();
 
     return { template: responseTemplate };
   },
 
-  async createActivity(req) {
-    const { title, time, templateId, icon, location, cost, type, date } =
-      req.body;
-    await validateCreatedTripActivity(req.body);
-    // Find the template
-    const template = await TemplateModel.findById(templateId)
-      .select("permissions startDate endDate")
-      .lean();
+  async createActivity(data) {
+    try {
+      const { title, time, templateId, icon, location, cost, type, date } =
+        data;
+      await createTripActivitySchema.validate(data);
+      // Find the template
+      const template = await TemplateModel.findById(templateId)
+        .select("permissions startDate endDate")
+        .lean();
 
-    // Convert date strings to Date objects for comparison
-    const startDate = new Date(template.startDate);
-    const endDate = new Date(template.endDate);
-    const activityDate = new Date(date);
+      // Convert date strings to Date objects for comparison
+      const startDate = new Date(template.startDate);
+      const endDate = new Date(template.endDate);
+      const activityDate = new Date(date);
 
-    // Check if the activity date is within the template's start and end dates
-    if (activityDate < startDate || activityDate > endDate) {
-      throwError("AUTH-030");
-    }
+      // Check if the activity date is within the template's start and end dates
+      if (activityDate < startDate || activityDate > endDate) {
+        throwError("AUTH-030");
+      }
 
-    // Create a new trip activity
-    let tripActivity = await TripActivityModel.findOne({
-      tepmplate: templateId,
-      date,
-    });
-
-    if (!tripActivity) {
-      tripActivity = new TripActivityModel({
+      // Create a new trip activity
+      let tripActivity = await TripActivityModel.findOne({
         tepmplate: templateId,
         date,
-        activities: [],
       });
-    }
-    const isAlreadyExitTime = tripActivity.activities.some(
-      (activity) => activity.time === time
-    );
-    if (isAlreadyExitTime) {
-      throwError("TEM-030");
-    }
-    tripActivity.activities.push({
-      title,
-      time,
-      location,
-      cost,
-      type,
-      icon,
-    });
 
-    const newActivity = tripActivity;
-    // Save the activity
-    await newActivity.save();
+      if (!tripActivity) {
+        tripActivity = new TripActivityModel({
+          tepmplate: templateId,
+          date,
+          activities: [],
+        });
+      }
+      const isAlreadyExitTime = tripActivity.activities.some(
+        (activity) => activity.time === time
+      );
+      if (isAlreadyExitTime) {
+        throwError("TEM-030");
+      }
+      tripActivity.activities.push({
+        title,
+        time,
+        location,
+        cost,
+        type,
+        icon,
+      });
 
-    return newActivity;
+      const newActivity = tripActivity;
+      // Save the activity
+      await newActivity.save();
+
+      return newActivity;
+    } catch (error) {
+      throwError(error.message);
+    }
   },
 
-  async editActivity(req) {
-    const { activityId, tripActivityId } = req.body;
-    await validateEditTripActivity(req.body);
-    const tripActivity = await TripActivityModel.findById(tripActivityId);
+  async editActivity(data) {
+    try {
+      const { activityId, tripActivityId } = data;
 
-    if (!tripActivity) {
-      throwError("TEM-031");
+      await editTripActivitySchema.validate(data);
+
+      const tripActivity = await TripActivityModel.findById(tripActivityId);
+
+      if (!tripActivity) {
+        throwError("TEM-031");
+      }
+
+      const activityIndex = tripActivity.activities.findIndex(
+        (activity) => activity._id.toString() === activityId
+      );
+
+      if (activityIndex === -1) {
+        throwError("TEM-031");
+      }
+
+      const oldActivity = tripActivity.activities[activityIndex];
+      const fields = ["title", "time", "location", "cost", "type", "icon"];
+
+      const updatedActivity = { _id: activityId };
+
+      fields.forEach((field) => {
+        updatedActivity[field] =
+          req.body[field] !== undefined ? req.body[field] : oldActivity[field];
+      });
+
+      tripActivity.activities[activityIndex] = updatedActivity;
+      await tripActivity.save();
+
+      return tripActivity;
+    } catch (error) {
+      throwError(error);
     }
-
-    const activityIndex = tripActivity.activities.findIndex(
-      (activity) => activity._id.toString() === activityId
-    );
-
-    if (activityIndex === -1) {
-      throwError("TEM-031");
-    }
-
-    const oldActivity = tripActivity.activities[activityIndex];
-    const fields = ["title", "time", "location", "cost", "type", "icon"];
-
-    const updatedActivity = { _id: activityId };
-
-    fields.forEach((field) => {
-      updatedActivity[field] =
-        req.body[field] !== undefined ? req.body[field] : oldActivity[field];
-    });
-
-    tripActivity.activities[activityIndex] = updatedActivity;
-    await tripActivity.save();
-
-    return tripActivity;
   },
 
-  async deleteActivity(req) {
-    const { activityId, tripActivityId } = req.body;
-    await validateDeleteTripActivity(req.body);
+  async deleteActivity(data) {
+    try {
+      const { activityId, tripActivityId } = data;
+      await deleteTripActivitySchema(data);
 
-    const tripActivity = await TripActivityModel.findById(tripActivityId);
+      const tripActivity = await TripActivityModel.findById(tripActivityId);
 
-    if (!tripActivity) {
-      throwError("TEM-031");
+      if (!tripActivity) {
+        throwError("TEM-031");
+      }
+
+      const activityIndex = tripActivity.activities.findIndex(
+        (activity) => activity._id.toString() === activityId
+      );
+
+      if (activityIndex === -1) {
+        throwError("TEM-031");
+      }
+
+      tripActivity.activities.splice(activityIndex, 1);
+
+      await tripActivity.save();
+    } catch (error) {
+      throwError(error);
     }
-
-    const activityIndex = tripActivity.activities.findIndex(
-      (activity) => activity._id.toString() === activityId
-    );
-
-    if (activityIndex === -1) {
-      throwError("TEM-031");
-    }
-
-    tripActivity.activities.splice(activityIndex, 1);
-
-    await tripActivity.save();
   },
 
-  async middleCheckEditPermission(req, next) {
-    const { userId } = req.user;
+  async middleCheckEditPermission(reqUser, data) {
+    const { userId } = reqUser;
     const { templateId } = sanitizeAndValidate(
-      req.body,
+      data,
       ["templateId"],
       {
         trim: true,
@@ -265,7 +280,6 @@ const MyTemplateService = {
     if (!checkEditPermission(userId, template.listMembers, "edit")) {
       throwError("TEM-029");
     }
-    next();
   },
 
   async getSuggestActivityFromAI(req) {

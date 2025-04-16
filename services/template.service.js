@@ -6,13 +6,13 @@ const BackgroundsTemplateModel = require("../models/backgroundTemplateModel");
 const TripTypeModel = require("../models/tripTypeModel");
 const { callAI } = require("./getSuggestAI");
 const throwError = require("../utils/throwError");
-const { validateTemplateData } = require("../validators/template.validator");
+const { createTemplteSchema } = require("../validators/template.validator");
 const {
   handleCreateListMembers,
   handleCheckExitBackground,
   handleCheckExitTripType,
   handleCaculatorDistance,
-} = require("../validators/logic/template.logic");
+} = require("../logics/template.logic");
 
 const TemplateService = {
   async getTemplate(templateId) {
@@ -28,72 +28,76 @@ const TemplateService = {
     return responseTemplate;
   },
 
-  async createTemplate(req) {
-    const { userId, email, fullName } = req.user;
-    const {
-      background,
-      tripType,
-      title,
-      startDate,
-      endDate,
-      budget,
-      members,
-      vihicle,
-      listMembers,
-      healthNotes,
-      description,
-      from,
-      to,
-    } = req.body;
+  async createTemplate(reqUser, data) {
+    try {
+      const { userId, email, fullName } = reqUser;
+      const {
+        background,
+        tripType,
+        title,
+        startDate,
+        endDate,
+        budget,
+        members,
+        vihicle,
+        listMembers,
+        healthNotes,
+        description,
+        from,
+        to,
+      } = data;
 
-    // Kiểm tra dữ liệu
-    await validateTemplateData(req.body);
+      // Kiểm tra dữ liệu
+      await createTemplteSchema.validate(data);
 
-    const membersToAdd = await handleCreateListMembers(
-      listMembers || [],
-      email,
-      fullName,
-      userId
-    );
+      const membersToAdd = await handleCreateListMembers(
+        listMembers || [],
+        email,
+        fullName,
+        userId
+      );
 
-    await handleCheckExitBackground(background);
-    await handleCheckExitTripType(tripType);
+      await handleCheckExitBackground(background);
+      await handleCheckExitTripType(tripType);
 
-    // Lấy danh sách items mặc định
-    const defaultItems = await DefaultItemModel.find().lean();
-    const pack = new PackModel({
-      categories: defaultItems.map((category) => ({
-        category: category.category,
-        items: category.items.map((item) => ({ name: item, isCheck: false })),
-        isDefault: true,
-      })),
-    });
-    await pack.save();
+      // Lấy danh sách items mặc định
+      const defaultItems = await DefaultItemModel.find().lean();
+      const pack = new PackModel({
+        categories: defaultItems.map((category) => ({
+          category: category.category,
+          items: category.items.map((item) => ({ name: item, isCheck: false })),
+          isDefault: true,
+        })),
+      });
+      await pack.save();
 
-    // Tạo template mới
-    const newTemplate = await TemplateModel.create({
-      title,
-      startDate,
-      endDate,
-      budget,
-      members,
-      vihicle,
-      tripType,
-      distanceKm: handleCaculatorDistance(from, to),
-      listMembers: membersToAdd,
-      healthNotes,
-      background,
-      pack: pack._id,
-      description,
-      owner: userId,
-      from,
-      to,
-    });
+      // Tạo template mới
+      const newTemplate = await TemplateModel.create({
+        title,
+        startDate,
+        endDate,
+        budget,
+        members,
+        vihicle,
+        tripType,
+        distanceKm: handleCaculatorDistance(from, to),
+        listMembers: membersToAdd,
+        healthNotes,
+        background,
+        pack: pack._id,
+        description,
+        owner: userId,
+        from,
+        to,
+      });
 
-    // Lấy thông tin chi tiết template
-    const responseTemplate = await getTemplateDetails(newTemplate.toObject());
-    responseTemplate.pack = pack.toObject();
-    return responseTemplate;
+      // Lấy thông tin chi tiết template
+      const responseTemplate = await getTemplateDetails(newTemplate.toObject());
+      responseTemplate.pack = pack.toObject();
+      return responseTemplate;
+    } catch (error) {
+      throwError(error.message);
+    }
   },
 
   async getSuggestAI(data) {

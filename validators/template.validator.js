@@ -1,66 +1,118 @@
-const {
-  createTemplteSchema,
-  updateTripTimeLineSchema,
-} = require("../schemas/template.schema");
-const throwError = require("../utils/throwError");
+const yup = require("yup");
 
-const validateTemplateData = async (data) => {
-  try {
-    await createTemplteSchema.validate(data);
-    // Logic phụ về ngày
-    const { startDate, endDate } = data;
-    if (startDate && endDate) {
-      const [sM, sD, sY] = startDate.split("/");
-      const [eM, eD, eY] = endDate.split("/");
+const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-      const start = new Date(`${sY}-${sM}-${sD}`);
-      const end = new Date(`${eY}-${eM}-${eD}`);
+const locationSchema = yup
+  .object({
+    destination: yup.string().nullable(),
+    lat: yup.number().nullable(),
+    lon: yup.number().nullable(),
+  })
+  .test("location-fields", "AUTH-026", function (value) {
+    if (!value) return true;
+    const { destination, lat, lon } = value;
+    const isAnyFieldFilled = destination || lat || lon;
+    const isAllFieldsValid =
+      typeof destination === "string" &&
+      destination.trim() !== "" &&
+      typeof lat === "number" &&
+      typeof lon === "number";
+    return !isAnyFieldFilled || isAllFieldsValid;
+  });
 
-      const now = new Date();
-      const vnNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+const memberSchema = yup.object().shape({
+  email: yup
+    .string()
+    .typeError("AUTH-030")
+    .nullable()
+    .notRequired()
+    .test("is-valid-email-or-empty", "TEM-024", function (value) {
+      if (!value || value.trim() === "") return true;
+      return emailRegex.test(value);
+    }),
+  name: yup.string().typeError("AUTH-030").nullable(),
+});
 
-      if (start < vnNow) {
-        throw throwError("TEM-021");
-      }
-      if (start > end) {
-        throw throwError("TEM-022");
-      }
-    }
-    // custom logic nếu cần
-  } catch (err) {
-    throwError(err.message);
-  }
+const listMembersSchema = yup
+  .array()
+  .of(memberSchema)
+  .test("unique-emails", "TEM-023", (list) => {
+    if (!list) return true;
+    const emails = list
+      .map((item) => item.email)
+      .filter((email) => email && email.trim() !== "");
+    return new Set(emails).size === emails.length;
+  });
+
+const baseTripSchema = {
+  from: locationSchema,
+  to: locationSchema,
+  title: yup.string().typeError("AUTH-030").max(100).default("").nullable(),
+  startDate: yup
+    .string()
+    .typeError("AUTH-030")
+    .matches(dateRegex, "AUTH-026")
+    .nullable(),
+  endDate: yup
+    .string()
+    .typeError("AUTH-030")
+    .matches(dateRegex, "AUTH-026")
+    .nullable(),
+  budget: yup.number().typeError("AUTH-030").positive("AUTH-030").nullable(),
+  tripType: yup.string().typeError("AUTH-030").nullable(),
+  vihicle: yup.string().typeError("AUTH-030").max(50).default("").nullable(),
+  members: yup.number().typeError("AUTH-030").min(1, "TEM-017").nullable(),
+  listMembers: listMembersSchema,
+  background: yup.string().typeError("AUTH-030").nullable(),
+  healthNotes: yup
+    .string()
+    .typeError("AUTH-030")
+    .max(100)
+    .default("")
+    .nullable(),
+  description: yup
+    .string()
+    .typeError("AUTH-030")
+    .max(200)
+    .default("")
+    .nullable(),
 };
 
-const validateUpdateTripTimeLine = async (data) => {
-  try {
-    await updateTripTimeLineSchema.validate(data);
-    // Logic phụ về ngày
-    const { startDate, endDate } = data;
-    if (startDate && endDate) {
-      const [sM, sD, sY] = startDate.split("/");
-      const [eM, eD, eY] = endDate.split("/");
+const createTemplteSchema = yup.object().shape({
+  ...baseTripSchema,
+  from: yup.object({
+    destination: yup.string().typeError("AUTH-030").required("AUTH-026"),
+    lat: yup.number().typeError("AUTH-030").required("AUTH-026"),
+    lon: yup.number().typeError("AUTH-030").required("AUTH-026"),
+  }),
+  to: yup.object({
+    destination: yup.string().typeError("AUTH-030").required("AUTH-026"),
+    lat: yup.number().typeError("AUTH-030").required("AUTH-026"),
+    lon: yup.number().typeError("AUTH-030").required("AUTH-026"),
+  }),
+  startDate: yup
+    .string()
+    .typeError("AUTH-030")
+    .matches(dateRegex, "AUTH-026")
+    .required("AUTH-026"),
+  endDate: yup
+    .string()
+    .typeError("AUTH-030")
+    .matches(dateRegex, "AUTH-026")
+    .required("AUTH-026"),
+  budget: yup
+    .number()
+    .typeError("AUTH-030")
+    .positive("AUTH-030")
+    .required("AUTH-026"),
+  tripType: yup.string().typeError("AUTH-030").required("TEM-003"),
+  background: yup.string().typeError("AUTH-030").required("TEM-004"),
+});
 
-      const start = new Date(`${sY}-${sM}-${sD}`);
-      const end = new Date(`${eY}-${eM}-${eD}`);
+const updateTripTimeLineSchema = yup.object().shape({
+  ...baseTripSchema,
+  templateId: yup.string().typeError("AUTH-030").required("AUTH-026"),
+});
 
-      const now = new Date();
-      const vnNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
-
-      if (start < vnNow) {
-        throw throwError("TEM-021");
-      }
-      if (start > end) {
-        throw throwError("TEM-022");
-      }
-    }
-    // custom logic nếu cần
-  } catch (err) {
-    throwError(err.message);
-  }
-};
-
-module.exports = {
-  validateTemplateData,
-  validateUpdateTripTimeLine,
-};
+module.exports = { createTemplteSchema, updateTripTimeLineSchema };

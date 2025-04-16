@@ -1,9 +1,9 @@
 const haversine = require("haversine-distance");
 
-const UserModel = require("../../models/userModel");
-const BackgroundTemplateModel = require("../../models/backgroundTemplateModel");
-const throwError = require("../../utils/throwError");
-const TripTypeModel = require("../../models/tripTypeModel");
+const UserModel = require("../models/userModel");
+const BackgroundTemplateModel = require("../models/backgroundTemplateModel");
+const throwError = require("../utils/throwError");
+const TripTypeModel = require("../models/tripTypeModel");
 
 /**
  * Tạo danh sách thành viên từ listMembers gửi lên + thêm người tạo (owner)
@@ -153,10 +153,35 @@ const handleCaculatorDistance = (from, to) => {
   );
 };
 
+/**
+ * Tính toán ngày đến và ngày về có hợp lệ không
+ * @param {string} startDate - Tọa độ
+ * @param {string} endDate - Tọa độ
+ * @returns {void}
+ */
+const handleCheckStartAndEndDate = (startDate, endDate) => {
+  const [sM, sD, sY] = startDate.split("/");
+  const [eM, eD, eY] = endDate.split("/");
+
+  const start = new Date(`${sY}-${sM}-${sD}`);
+  const end = new Date(`${eY}-${eM}-${eD}`);
+
+  const now = new Date();
+  const vnNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+
+  if (start < vnNow) {
+    throw throwError("TEM-021");
+  }
+  if (start > end) {
+    throw throwError("TEM-022");
+  }
+};
+
 module.exports = {
   handleListMembersUpdate,
   handleCreateListMembers,
   handleCheckExitBackground,
   handleCheckExitTripType,
   handleCaculatorDistance,
+  handleCheckStartAndEndDate,
 };

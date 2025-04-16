@@ -37,8 +37,34 @@ const BackgroundTemplateService = {
   },
 
   async getAllTripTypes() {
-    const tripTypes = await tripTypeModel.find().lean();
-    return tripTypes;
+    const tripTypes = await tripTypeModel
+      .find()
+      .select("-createdAt -updatedAt -__v")
+      .lean();
+
+    // Lấy danh sách background images cho mỗi trip type
+    const tripTypesWithBackgrounds = await Promise.all(
+      tripTypes.map(async (tripType) => {
+        const backgroundImages = await backgroundTemplateModel
+          .find({ tripTypeId: tripType._id })
+          .lean();
+
+        if (backgroundImages.length === 0) {
+          return { ...tripType, backgroundImage: null };
+        }
+
+        // Get a random background image
+        const randomIndex = Math.floor(Math.random() * backgroundImages.length);
+        const randomBackgroundImage = backgroundImages[randomIndex];
+
+        return {
+          ...tripType,
+          backgroundImage: randomBackgroundImage.background.url,
+        };
+      })
+    );
+
+    return tripTypesWithBackgrounds;
   },
 };
 

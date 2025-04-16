@@ -2,7 +2,7 @@ const templateService = require("../services/template.service");
 
 exports.createTemplate = async (req, res, next) => {
   try {
-    const result = await templateService.createTemplate(req);
+    const result = await templateService.createTemplate(req.user, req.body);
     return res.status(201).json({
       message: "TEM-001",
       data: result,

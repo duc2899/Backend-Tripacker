@@ -2,7 +2,10 @@ const myTemplateService = require("../services/myTemplate.service");
 
 exports.getTripTimeLine = async (req, res, next) => {
   try {
-    const result = await myTemplateService.getTripTimeLine(req);
+    const result = await myTemplateService.getTripTimeLine(
+      req.user,
+      req.params.templateId
+    );
     return res.status(200).json({
       message: "COMMON-002",
       data: result,
@@ -14,7 +17,10 @@ exports.getTripTimeLine = async (req, res, next) => {
 
 exports.updateTripTimeLine = async (req, res, next) => {
   try {
-    const result = await myTemplateService.updateTripTimeLine(req);
+    const result = await myTemplateService.updateTripTimeLine(
+      req.user,
+      req.body
+    );
     return res.status(200).json({
       message: "COMMON-003",
       data: result,
@@ -38,7 +44,7 @@ exports.getSuggestActivity = async (req, res, next) => {
 
 exports.createActivity = async (req, res, next) => {
   try {
-    const result = await myTemplateService.createActivity(req);
+    const result = await myTemplateService.createActivity(req.body);
     return res.status(201).json({
       message: "COMMON-001",
       data: result,
@@ -50,7 +56,7 @@ exports.createActivity = async (req, res, next) => {
 
 exports.editActivity = async (req, res, next) => {
   try {
-    const result = await myTemplateService.editActivity(req);
+    const result = await myTemplateService.editActivity(req.body);
     return res.status(200).json({
       message: "COMMON-003",
       data: result,
@@ -62,7 +68,7 @@ exports.editActivity = async (req, res, next) => {
 
 exports.deleteActivity = async (req, res, next) => {
   try {
-    await myTemplateService.deleteActivity(req);
+    await myTemplateService.deleteActivity(req.body);
     return res.status(200).json({
       message: "COMMON-004",
     });
@@ -73,7 +79,8 @@ exports.deleteActivity = async (req, res, next) => {
 
 exports.checkPermission = async (req, res, next) => {
   try {
-    await myTemplateService.middleCheckEditPermission(req, next);
+    await myTemplateService.middleCheckEditPermission(req.user, req.body);
+    next();
   } catch (error) {
     next(error);
   }
