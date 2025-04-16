@@ -1,7 +1,19 @@
+const mongoose = require("mongoose");
 const yup = require("yup");
 
 const dateRegex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const objectIdSchema = yup
+  .string()
+  .required("AUTH-026")
+  .test("is-object-id", "AUTH-030", (value) => {
+    if (!value) return false;
+    // Kiểm tra độ dài 24 và chỉ chứa ký tự hex
+    return (
+      mongoose.Types.ObjectId.isValid(value) && /^[0-9a-fA-F]{24}$/.test(value)
+    );
+  });
 
 const locationSchema = yup
   .object({
@@ -21,22 +33,29 @@ const locationSchema = yup
     return !isAnyFieldFilled || isAllFieldsValid;
   });
 
-const memberSchema = yup.object().shape({
-  email: yup
-    .string()
-    .typeError("AUTH-030")
-    .nullable()
-    .notRequired()
-    .test("is-valid-email-or-empty", "TEM-024", function (value) {
-      if (!value || value.trim() === "") return true;
-      return emailRegex.test(value);
-    }),
-  name: yup.string().typeError("AUTH-030").nullable(),
-});
+const roleSchema = yup
+  .string()
+  .typeError("AUTH-030")
+  .oneOf(["edit", "view"], "AUTH-030")
+  .required("AUTH-026");
 
 const listMembersSchema = yup
   .array()
-  .of(memberSchema)
+  .of(
+    yup.object().shape({
+      email: yup
+        .string()
+        .typeError("AUTH-030")
+        .nullable()
+        .notRequired()
+        .test("is-valid-email-or-empty", "TEM-024", function (value) {
+          if (!value || value.trim() === "") return true;
+          return emailRegex.test(value);
+        }),
+      name: yup.string().typeError("AUTH-030").required("AUTH-026"),
+      role: roleSchema,
+    })
+  )
   .test("unique-emails", "TEM-023", (list) => {
     if (!list) return true;
     const emails = list
@@ -112,7 +131,63 @@ const createTemplteSchema = yup.object().shape({
 
 const updateTripTimeLineSchema = yup.object().shape({
   ...baseTripSchema,
-  templateId: yup.string().typeError("AUTH-030").required("AUTH-026"),
+  templateId: objectIdSchema,
 });
 
-module.exports = { createTemplteSchema, updateTripTimeLineSchema };
+const updateListMembersSchema = yup.object().shape({
+  listMembers: yup
+    .array()
+    .of(
+      yup.object().shape({
+        email: yup
+          .string()
+          .typeError("AUTH-030")
+          .nullable()
+          .notRequired()
+          .test("is-valid-email-or-empty", "TEM-024", function (value) {
+            if (!value || value.trim() === "") return true;
+            return emailRegex.test(value);
+          }),
+        name: yup.string().typeError("AUTH-030").required("AUTH-026"),
+        role: roleSchema,
+      })
+    )
+    .min(1, "AUTH-030")
+    .test("unique-emails", "TEM-023", (list) => {
+      if (!list) return true;
+      const emails = list
+        .map((item) => item.email)
+        .filter((email) => email && email.trim() !== "");
+      return new Set(emails).size === emails.length;
+    }),
+  templateId: objectIdSchema,
+});
+
+const updateRoleSchema = yup.object().shape({
+  role: roleSchema,
+  _id: objectIdSchema,
+  templateId: objectIdSchema,
+});
+
+const deleteMembersSchema = yup.object().shape({
+  listMembers: yup
+    .array()
+    .of(
+      objectIdSchema // ⬅️ Không đúng ObjectId thì báo lỗi
+    )
+    .required("TEM-026")
+    .min(1, "AUTH-030"), // Không cho rỗng
+
+  templateId: objectIdSchema,
+});
+
+const middleCheckPermissionSchema = objectIdSchema;
+
+module.exports = {
+  createTemplteSchema,
+  updateTripTimeLineSchema,
+  updateListMembersSchema,
+  updateRoleSchema,
+  deleteMembersSchema,
+  middleCheckPermissionSchema,
+};

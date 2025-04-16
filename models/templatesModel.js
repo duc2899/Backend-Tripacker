@@ -55,12 +55,6 @@ const templatesSchema = new mongoose.Schema(
       {
         email: {
           type: String,
-          validate: {
-            validator: function (email) {
-              return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-            },
-            message: (props) => `Email (${props.value}) is invalid!`,
-          },
           default: "",
         },
         isRegistered: { type: Boolean, default: false },
@@ -73,7 +67,7 @@ const templatesSchema = new mongoose.Schema(
           enum: ["edit", "view"],
           default: "view",
         },
-        name: { type: String, default: "" },
+        name: { type: String, required: true },
       },
     ],
     isPublic: {

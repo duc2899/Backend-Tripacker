@@ -30,6 +30,41 @@ exports.updateTripTimeLine = async (req, res, next) => {
   }
 };
 
+exports.updateListMembers = async (req, res, next) => {
+  try {
+    const result = await myTemplateService.updateListMembers(req.body);
+    return res.status(200).json({
+      message: "COMMON-003",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deleteMembers = async (req, res, next) => {
+  try {
+    const result = await myTemplateService.deleteMembers(req.user, req.body);
+    return res.status(200).json({
+      message: "COMMON-004",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+exports.updateRoleMember = async (req, res, next) => {
+  try {
+    const result = await myTemplateService.updateRoleMember(req.body);
+    return res.status(200).json({
+      message: "COMMON-003",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.getSuggestActivity = async (req, res, next) => {
   try {
     const result = await myTemplateService.getSuggestActivityFromAI(req);
@@ -79,20 +114,11 @@ exports.deleteActivity = async (req, res, next) => {
 
 exports.checkPermission = async (req, res, next) => {
   try {
-    await myTemplateService.middleCheckEditPermission(req.user, req.body);
+    await myTemplateService.middleCheckEditPermission(
+      req.user,
+      req.body.templateId
+    );
     next();
-  } catch (error) {
-    next(error);
-  }
-};
-
-exports.addMembers = async (req, res, next) => {
-  try {
-    const result = await myTemplateService.addMembers(req);
-    return res.status(200).json({
-      message: "TEM-034",
-      data: result,
-    });
   } catch (error) {
     next(error);
   }

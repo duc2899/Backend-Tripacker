@@ -8,10 +8,33 @@ router.get(
   authMiddleware,
   myTemplateController.getTripTimeLine
 );
+
 router.post(
   "/updateTripTimeLine",
   authMiddleware,
+  myTemplateController.checkPermission,
   myTemplateController.updateTripTimeLine
+);
+
+router.post(
+  "/updateListMembers",
+  authMiddleware,
+  myTemplateController.checkPermission,
+  myTemplateController.updateListMembers
+);
+
+router.post(
+  "/updateRoleMember",
+  authMiddleware,
+  myTemplateController.checkPermission,
+  myTemplateController.updateRoleMember
+);
+
+router.post(
+  "/deleteMembers",
+  authMiddleware,
+  myTemplateController.checkPermission,
+  myTemplateController.deleteMembers
 );
 
 router.post(
@@ -20,11 +43,13 @@ router.post(
   myTemplateController.checkPermission,
   myTemplateController.createActivity
 );
+
 router.get(
   "/getSuggestActivity/:templateId",
   authMiddleware,
   myTemplateController.getSuggestActivity
 );
+
 router.post(
   "/editActivity",
   authMiddleware,
@@ -37,13 +62,6 @@ router.post(
   authMiddleware,
   myTemplateController.checkPermission,
   myTemplateController.deleteActivity
-);
-
-router.post(
-  "/addMembers",
-  authMiddleware,
-  myTemplateController.checkPermission,
-  myTemplateController.addMembers
 );
 
 module.exports = router;

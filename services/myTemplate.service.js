@@ -1,11 +1,11 @@
 const axios = require("axios");
 
 const TemplateModel = require("../models/templatesModel");
+const UserModel = require("../models/userModel");
 const TripActivityModel = require("../models/tripActivityModel");
 const throwError = require("../utils/throwError");
 const { sanitizeAndValidate } = require("../utils");
 const { callAI } = require("./getSuggestAI");
-const { isValidEmail } = require("../utils/validateEmail");
 const {
   createTripActivitySchema,
   editTripActivitySchema,
@@ -13,36 +13,47 @@ const {
 } = require("../validators/tripActivity.validator");
 const {
   validateUpdateTripTimeLine,
+  updateListMembersSchema,
+  updateRoleSchema,
+  middleCheckPermissionSchema,
+  deleteMembersSchema,
 } = require("../validators/template.validator");
 const {
-  handleListMembersUpdate,
   handleCaculatorDistance,
   handleCheckExitBackground,
   handleCheckExitTripType,
   handleCheckStartAndEndDate,
+  handleUpdateListMembers,
 } = require("../logics/template.logic");
 
 const MyTemplateService = {
   async getTripTimeLine(reqUser, templateId) {
-    const { userId } = reqUser;
+    const { email, userId, fullName } = reqUser;
 
     const template = await TemplateModel.findById(templateId)
       .populate("owner tripType background")
       .select(
         "owner from to title startDate endDate budget tripType vihicle listMembers background description distanceKm isPublic"
-      )
-      .lean();
-
-    const hasPermission = template.listMembers.some(
-      (permission) => permission.user && permission.user.toString() === userId
-    );
+      );
 
     if (!template) {
       throwError("TEM-012");
     }
 
-    if (!hasPermission) {
+    const member = template.listMembers.find(
+      (member) => member.email && member.email === email
+    );
+
+    if (!member) {
       throwError("TEM-029");
+    }
+
+    // Cập nhật thông tin user nếu chưa có
+    if (!member.user) {
+      member.user = userId;
+      member.name = fullName;
+      member.isRegistered = true;
+      await template.save(); // Save luôn thay vì gọi lại findById
     }
 
     const activities = await TripActivityModel.find({
@@ -50,49 +61,34 @@ const MyTemplateService = {
     }).lean();
 
     const resulttData = {
-      infor: {},
-      tripActivities: [],
+      infor: {
+        ...template.toObject(),
+        owner: template.owner.email,
+        tripType: template.tripType.name,
+        background: template.background.background,
+        role: member?.role,
+      },
+      tripActivities: activities,
       memberTaks: [],
     };
 
-    // --------------- Get Infor ----------------
-    resulttData.infor = {
-      ...template,
-      owner: template.owner.email,
-      tripType: template.tripType.name,
-      background: template.background.background,
-    };
-
-    // ----------------- Get tripActivities ---------------
-    resulttData.tripActivities = activities;
     return resulttData;
-    // -------------------- Get memberTaks -----------------
   },
 
   async updateTripTimeLine(reqUser, updateData) {
-    const { email } = reqUser;
     // Kiểm tra template có tồn tại không
     const template = await TemplateModel.findById(updateData.templateId);
 
     // 2. Kiểm tra và validate dữ liệu
     await validateUpdateTripTimeLine(updateData);
 
-    // 3. Xử lý listMembers (nếu có)
-    let membersToAdd = [];
-    if (updateData.listMembers) {
-      membersToAdd = await handleListMembersUpdate(
-        updateData.listMembers,
-        template.listMembers,
-        email
-      );
-      template.listMembers = template.listMembers.concat(membersToAdd);
-    }
-
-    if (updateData.to && updateData.from) {
+    if (updateData.to.lat && updateData.from.lat) {
       template.distanceKm = handleCaculatorDistance(
         updateData.from,
         updateData.to
       );
+      template.from = updateData.from;
+      template.to = updateData.to;
     }
 
     if (updateData.startDate && updateData.endDate) {
@@ -118,8 +114,6 @@ const MyTemplateService = {
       "vihicle",
       "healthNotes",
       "description",
-      "from",
-      "to",
     ];
 
     fieldsToUpdate.forEach((key) => {
@@ -131,6 +125,80 @@ const MyTemplateService = {
     const responseTemplate = await template.toObject();
 
     return { template: responseTemplate };
+  },
+
+  async updateListMembers(data) {
+    try {
+      await updateListMembersSchema.validate(data);
+
+      const template = await TemplateModel.findById(data.templateId).select(
+        "listMembers"
+      );
+
+      const newListMembers = await handleUpdateListMembers(
+        data.listMembers,
+        template.listMembers
+      );
+
+      template.listMembers = [...template.listMembers, ...newListMembers];
+      await template.save();
+      return template.toObject();
+    } catch (error) {
+      throwError(error);
+    }
+  },
+
+  async updateRoleMember(data) {
+    try {
+      await updateRoleSchema.validate(data);
+
+      const template = await TemplateModel.findById(data.templateId).select(
+        "listMembers"
+      );
+
+      const member = template.listMembers.find(
+        (mem) => mem._id.toString() === data._id
+      );
+      if (!member) {
+        throwError("COMMON-005");
+      }
+      member.role = data.role;
+      await template.save();
+      return template.toObject();
+    } catch (error) {
+      throwError(error);
+    }
+  },
+
+  async deleteMembers(reqUser, data) {
+    try {
+      const { email } = reqUser;
+      await deleteMembersSchema.validate(data);
+
+      const template = await TemplateModel.findById(data.templateId).select(
+        "listMembers"
+      );
+
+      // Lọc ra các thành viên không nằm trong danh sách bị xoá
+      template.listMembers = template.listMembers.filter((member) => {
+        // Nếu member nằm trong danh sách cần xoá
+        const shouldDelete = data.listMembers.includes(member._id.toString());
+
+        // Nếu là chính mình thì không cho xoá
+
+        if (shouldDelete && member.email === email) {
+          throwError("TEM-030"); // Không thể tự xoá mình
+        }
+
+        // Giữ lại nếu không nằm trong danh sách xoá
+        return !shouldDelete;
+      });
+
+      await template.save();
+      return template.toObject();
+    } catch (error) {
+      throwError(error.message);
+    }
   },
 
   async createActivity(data) {
@@ -257,19 +325,10 @@ const MyTemplateService = {
     }
   },
 
-  async middleCheckEditPermission(reqUser, data) {
+  async middleCheckEditPermission(reqUser, templateId) {
     const { userId } = reqUser;
-    const { templateId } = sanitizeAndValidate(
-      data,
-      ["templateId"],
-      {
-        trim: true,
-        removeNull: false,
-      },
-      {
-        templateId: "string",
-      }
-    );
+
+    await middleCheckPermissionSchema.validate(templateId);
 
     const template = await TemplateModel.findById(templateId)
       .select("listMembers")
@@ -354,50 +413,6 @@ const MyTemplateService = {
     return {
       activities: activitiesWithImages,
     };
-  },
-
-  async addMembers(req) {
-    const { listMembers, templateId } = sanitizeAndValidate(
-      req.body,
-      ["listMembers", "templateId"],
-      {
-        trim: true,
-        removeNull: true,
-      },
-      {
-        listMembers: "object",
-        templateId: "string",
-      }
-    );
-
-    const template = await TemplateModel.findById(templateId).select(
-      "listMembers"
-    );
-
-    const existingEmails = new Set(template.listMembers.map((m) => m.email));
-    const newEmails = listMembers.map((m) => m.email);
-
-    // Kiểm tra duplicate trong list gửi lên
-    const newEmailSet = new Set(newEmails);
-    if (newEmails.length !== newEmailSet.size) throwError("TEM-023"); // Trùng trong request
-
-    // Kiểm tra email hợp lệ và có bị trùng không
-    const invalidEmails = newEmails.filter((email) => !isValidEmail(email));
-    if (invalidEmails.length > 0) throwError("TEM-024");
-
-    const duplicatedEmails = newEmails.filter((email) =>
-      existingEmails.has(email)
-    );
-    if (duplicatedEmails.length > 0) throwError("TEM-023");
-
-    // Thêm vào template
-    template.listMembers.push(...listMembers);
-    await template.save({ validateModifiedOnly: true });
-
-    // Trả về list member mới nhất
-    return (
-      await TemplateModel.findById(templateId).select("listMembers").lean()
-    ).listMembers;
   },
 };
 
