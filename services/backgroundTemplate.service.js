@@ -50,7 +50,7 @@ const BackgroundTemplateService = {
           .lean();
 
         if (backgroundImages.length === 0) {
-          return { ...tripType, backgroundImage: null };
+          return { ...tripType, backgroundImage: null, backgroundId: null };
         }
 
         // Get a random background image
@@ -59,7 +59,10 @@ const BackgroundTemplateService = {
 
         return {
           ...tripType,
-          backgroundImage: randomBackgroundImage.background.url,
+          backgroundImage: {
+            url: randomBackgroundImage.background.url,
+            _id: randomBackgroundImage._id,
+          },
         };
       })
     );
