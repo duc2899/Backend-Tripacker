@@ -4,20 +4,8 @@ exports.createTemplate = async (req, res, next) => {
   try {
     const result = await templateService.createTemplate(req.user, req.body);
     return res.status(201).json({
-      message: "TEM-001",
+      message: "COMMON-001",
       data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-exports.getSuggest = async (req, res, next) => {
-  try {
-    const result = await templateService.getSuggestAI(req.body);
-    return res.status(200).json({
-      data: result,
-      message: "TEM-002",
     });
   } catch (error) {
     next(error);
@@ -52,27 +40,11 @@ exports.updateCategoryPacks = async (req, res, next) => {
   }
 };
 
-exports.updateInforTemplate = async (req, res, next) => {
-  try {
-    const result = await templateService.updateInforTemplate(
-      req.body,
-      req.user.userId
-    );
-
-    return res.status(200).json({
-      message: "TEM-004",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 exports.searchTemplates = async (req, res, next) => {
   try {
-    const result = await templateService.searchTemplates(req);
+    const result = await templateService.searchTemplates(req.params);
     return res.status(200).json({
-      message: "TEM-005",
+      message: "COMMON-002",
       data: result,
     });
   } catch (error) {
@@ -82,9 +54,12 @@ exports.searchTemplates = async (req, res, next) => {
 
 exports.searchUsersByEmail = async (req, res, next) => {
   try {
-    const result = await templateService.searchUsersByEmail(req);
+    const result = await templateService.searchUsersByEmail(
+      req.user,
+      req.params
+    );
     return res.status(200).json({
-      message: "TEM-005",
+      message: "COMMON-002",
       data: result,
     });
   } catch (error) {

@@ -91,10 +91,7 @@ const TemplateService = {
         to,
       });
 
-      // Lấy thông tin chi tiết template
-      const responseTemplate = await getTemplateDetails(newTemplate.toObject());
-      responseTemplate.pack = pack.toObject();
-      return responseTemplate;
+      return newTemplate._id;
     } catch (error) {
       throwError(error.message);
     }
@@ -217,41 +214,8 @@ const TemplateService = {
     return pack;
   },
 
-  // async updateInforTemplate(data, userId) {
-  //   const { templateId, updateData } = data;
-  //   // Kiểm tra template có tồn tại không
-  //   const template = await TemplateModel.findOne({
-  //     _id: templateId,
-  //     user: userId,
-  //   });
-  //   if (!template) {
-  //     throwError("TEM-015");
-  //   }
-
-  //   // Kiểm tra và validate dữ liệu
-  //   validateTemplateData(updateData);
-
-  //   // Cập nhật template với những trường có dữ liệu
-  //   Object.keys(updateData).forEach((key) => {
-  //     if (
-  //       updateData[key] !== undefined &&
-  //       key !== "packId" &&
-  //       key !== "userId" &&
-  //       key !== "tripTypeId" &&
-  //       key !== "backgroundId"
-  //     ) {
-  //       template[key] = updateData[key];
-  //     }
-  //   });
-
-  //   await template.save();
-  //   const responseTemplate = await getTemplateDetails(template.toObject());
-
-  //   return { template: responseTemplate };
-  // },
-
-  async searchTemplates(req) {
-    const { page = 1, limit = 10, query } = req.query;
+  async searchTemplates(data) {
+    const { page = 1, limit = 10, query } = data;
     const skip = (page - 1) * limit;
 
     const pipeline = [];
@@ -322,8 +286,9 @@ const TemplateService = {
     };
   },
 
-  async searchUsersByEmail(req) {
-    const { query } = req.query;
+  async searchUsersByEmail(reqUser, data) {
+    const { email } = reqUser;
+    const { query } = data;
 
     const pipeline = [];
 
@@ -333,16 +298,28 @@ const TemplateService = {
           email: { $regex: query, $options: "i" },
         },
       });
+    } else {
+      return {
+        data: [],
+      };
     }
 
-    const users = await UserModel.aggregate(pipeline).project({
-      email: 1,
-      fullName: 1,
-      _id: 0,
+    pipeline.push({
+      $project: {
+        _id: 0,
+        email: 1,
+        fullName: 1,
+        avatar: {
+          $ifNull: ["$avatar.url", ""],
+        },
+      },
     });
 
+    const users = await UserModel.aggregate(pipeline);
+    const newListUser = users.filter((user) => user.email !== email);
+
     return {
-      data: users,
+      data: newListUser,
     };
   },
 };

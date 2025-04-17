@@ -2,11 +2,11 @@ const userService = require("../services/user.service.js");
 
 exports.updateUser = async (req, res, next) => {
   try {
-    const updatedUser = await userService.updateUser(req);
+    const updatedUser = await userService.updateUser(req.user, req.body);
 
     return res.status(200).json({
       status: true,
-      message: "USER-003",
+      message: "COMMON-003",
       data: updatedUser,
     });
   } catch (error) {
@@ -14,27 +14,13 @@ exports.updateUser = async (req, res, next) => {
   }
 };
 
-// exports.getMe = async (req, res, next) => {
-//   try {
-//     const user = await userService.getMe(req.user.userId);
-
-//     return res.status(200).json({
-//       status: true,
-//       message: "USER-004",
-//       data: user,
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
-
 exports.getUserInformation = async (req, res, next) => {
   try {
-    const user = await userService.getUserInformation(req);
+    const user = await userService.getUserInformation(req.user);
 
     return res.status(200).json({
       status: true,
-      message: "USER-005",
+      message: "COMMON-002",
       data: user,
     });
   } catch (error) {
@@ -48,7 +34,7 @@ exports.getTemplateOwner = async (req, res, next) => {
 
     return res.status(200).json({
       status: true,
-      message: "USER-005",
+      message: "COMMON-002",
       data: user,
     });
   } catch (error) {
@@ -58,15 +44,11 @@ exports.getTemplateOwner = async (req, res, next) => {
 
 exports.upateAvatar = async (req, res, next) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ message: "USER-007" });
-    }
-
-    const updatedUser = await userService.updateAvatar(req);
+    const updatedUser = await userService.updateAvatar(req.user, req.file);
 
     return res.status(200).json({
       status: true,
-      message: "USER-006",
+      message: "COMMON-003",
       data: updatedUser,
     });
   } catch (error) {

@@ -13,22 +13,23 @@ const checkBirthDay = (birthDay) => {
   };
 
   if (!isValidDateFormat(birthDay)) {
-    throwError("USER-010", 400, "INVALID_DATE_FORMAT");
+    throwError("USER-010");
   }
 
   const birthDate = new Date(birthDay);
   const currentDate = new Date();
 
   if (isNaN(birthDate.getTime())) {
-    throwError("USER-011", 400, "INVALID_DATE_VALUE");
+    throwError("USER-011");
   }
 
   if (birthDate >= currentDate) {
-    throwError("USER-012", 400, "FUTURE_DATE_NOT_ALLOWED");
+    throwError("USER-012");
   }
 
   return true;
 };
+
 /**
  * @param {string} phoneNumber
  */

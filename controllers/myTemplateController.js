@@ -53,6 +53,7 @@ exports.deleteMembers = async (req, res, next) => {
     next(error);
   }
 };
+
 exports.updateRoleMember = async (req, res, next) => {
   try {
     const result = await myTemplateService.updateRoleMember(req.body);

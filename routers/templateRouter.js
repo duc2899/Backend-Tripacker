@@ -4,17 +4,12 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const templateController = require("../controllers/templateController");
 
 router.post("/create", authMiddleware, templateController.createTemplate);
+
 router.post(
   "/updateCategoryPacks",
   authMiddleware,
   templateController.updateCategoryPacks
 );
-router.post(
-  "/updateInforTemplate",
-  authMiddleware,
-  templateController.updateInforTemplate
-);
-router.post("/getSuggest", authMiddleware, templateController.getSuggest);
 
 router.get(
   "/getTemplate/:templateId",
@@ -22,9 +17,10 @@ router.get(
   templateController.getTemplate
 );
 
-router.get("/searchTemplates", templateController.searchTemplates);
+router.get("/search", templateController.searchTemplates);
+
 router.get(
-  "/searchUsersByEmail",
+  "/searchUsers",
   authMiddleware,
   templateController.searchUsersByEmail
 );
