@@ -9,6 +9,7 @@ exports.getTripTimeLine = async (req, res, next) => {
     return res.status(200).json({
       message: "COMMON-002",
       data: result,
+      status: true,
     });
   } catch (error) {
     next(error);
@@ -24,6 +25,7 @@ exports.updateTripTimeLine = async (req, res, next) => {
     return res.status(200).json({
       message: "COMMON-003",
       data: result,
+      status: true,
     });
   } catch (error) {
     next(error);
@@ -36,6 +38,7 @@ exports.updateListMembers = async (req, res, next) => {
     return res.status(200).json({
       message: "COMMON-003",
       data: result,
+      status: true,
     });
   } catch (error) {
     next(error);
@@ -48,6 +51,7 @@ exports.deleteMembers = async (req, res, next) => {
     return res.status(200).json({
       message: "COMMON-004",
       data: result,
+      status: true,
     });
   } catch (error) {
     next(error);
@@ -60,6 +64,7 @@ exports.updateRoleMember = async (req, res, next) => {
     return res.status(200).json({
       message: "COMMON-003",
       data: result,
+      status: true,
     });
   } catch (error) {
     next(error);
@@ -72,6 +77,7 @@ exports.getSuggestActivity = async (req, res, next) => {
     return res.status(200).json({
       message: "COMMON-002",
       data: result,
+      status: true,
     });
   } catch (error) {
     next(error);
@@ -84,6 +90,7 @@ exports.createActivity = async (req, res, next) => {
     return res.status(201).json({
       message: "COMMON-001",
       data: result,
+      status: true,
     });
   } catch (error) {
     next(error);
@@ -96,6 +103,7 @@ exports.editActivity = async (req, res, next) => {
     return res.status(200).json({
       message: "COMMON-003",
       data: result,
+      status: true,
     });
   } catch (error) {
     next(error);
@@ -107,6 +115,7 @@ exports.deleteActivity = async (req, res, next) => {
     await myTemplateService.deleteActivity(req.body);
     return res.status(200).json({
       message: "COMMON-004",
+      status: true,
     });
   } catch (error) {
     next(error);
