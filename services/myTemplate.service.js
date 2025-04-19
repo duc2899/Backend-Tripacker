@@ -1,10 +1,8 @@
 const axios = require("axios");
 
 const TemplateModel = require("../models/templatesModel");
-const UserModel = require("../models/userModel");
 const TripActivityModel = require("../models/tripActivityModel");
 const throwError = require("../utils/throwError");
-const { sanitizeAndValidate } = require("../utils");
 const { callAI } = require("./getSuggestAI");
 const {
   createTripActivitySchema,
@@ -33,7 +31,7 @@ const MyTemplateService = {
     const template = await TemplateModel.findById(templateId)
       .populate("owner tripType background")
       .select(
-        "owner from to title startDate endDate budget tripType vihicle listMembers background description distanceKm isPublic"
+        "owner from to title startDate endDate budget tripType vihicle listMembers background description distanceKm isPublic members"
       );
 
     if (!template) {
@@ -45,7 +43,7 @@ const MyTemplateService = {
     );
 
     if (!member) {
-      throwError("TEM-029");
+      throwError("TEM-029", 403);
     }
 
     // Cập nhật thông tin user nếu chưa có

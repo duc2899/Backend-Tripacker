@@ -2,7 +2,11 @@ const authServices = require("../services/auth.service.js");
 
 exports.register = async (req, res, next) => {
   try {
-    await authServices.register(req, res);
+    const result = await authServices.register(req.body);
+    return res.status(201).json({
+      status: true,
+      message: result.message,
+    });
   } catch (error) {
     next(error);
   }
@@ -10,7 +14,8 @@ exports.register = async (req, res, next) => {
 
 exports.verifyEmail = async (req, res, next) => {
   try {
-    await authServices.verifyEmail(req, res);
+    const result = await authServices.verifyEmail(req.params);
+    return res.redirect(result.url);
   } catch (error) {
     next(error);
   }
@@ -18,7 +23,7 @@ exports.verifyEmail = async (req, res, next) => {
 
 exports.login = async (req, res, next) => {
   try {
-    const result = await authServices.login(req, res);
+    const result = await authServices.login(req.body, res);
 
     return res.status(200).json({
       status: true,
@@ -32,7 +37,7 @@ exports.login = async (req, res, next) => {
 
 exports.logout = async (req, res, next) => {
   try {
-    await authServices.logout(req, res);
+    await authServices.logout(req.user, res);
 
     return res.status(200).json({
       status: true,
@@ -58,7 +63,11 @@ exports.forgotPassword = async (req, res, next) => {
 
 exports.resetPassword = async (req, res, next) => {
   try {
-    await authServices.resetPassword(req, res);
+    const result = await authServices.resetPassword(req.body);
+    return res.status(200).json({
+      status: true,
+      message: result.url,
+    });
   } catch (error) {
     next(error);
   }
@@ -66,7 +75,7 @@ exports.resetPassword = async (req, res, next) => {
 
 exports.changePassword = async (req, res, next) => {
   try {
-    await authServices.changePassword(req);
+    await authServices.changePassword(req.user, req.body);
 
     return res.status(200).json({
       status: true,
