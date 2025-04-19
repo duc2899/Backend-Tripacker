@@ -149,6 +149,8 @@ const AuthService = {
       return {
         _id: userDoc._id,
         access_token: token,
+        status: true,
+        message: "AUTH-032",
       };
     } catch (error) {
       throwError(error.message);
