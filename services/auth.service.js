@@ -37,6 +37,9 @@ const AuthService = {
       await registerSchema.validate(data);
       let user = await User.findOne({ email });
 
+      const protocol = !isDevelopment ? "https" : "http"; // Hoặc dùng APP_PROTOCOL
+      const domain = !isDevelopment ? process.env.APP_DOMAIN : "localhost:8000";
+
       if (user) {
         if (!user.verified) {
           // Cập nhật thông tin người dùng
@@ -59,9 +62,7 @@ const AuthService = {
 
           // Gửi lại email nếu token mới
           if (!isTokenValid) {
-            const verifyUrl = `${req.protocol}://${req.get(
-              "host"
-            )}/v1/api/auth/verify-email/${verifyToken}`;
+            const verifyUrl = `${protocol}://${domain}/v1/api/auth/verify-email/${verifyToken}`;
             await mailServices.sendEmail({
               to: email,
               subject: "Xác thực tài khoản",
@@ -91,11 +92,7 @@ const AuthService = {
       await user.save();
 
       // Gửi email xác thực
-      const verifyUrl = `${
-        isDevelopment
-          ? process.env.DEV_ALLOW_URL
-          : process.env.PRODUCTION_ALLOW_URL
-      }/v1/api/auth/verify-email/${verifyToken}`;
+      const verifyUrl = `${protocol}://${domain}/v1/api/auth/verify-email/${verifyToken}`;
       mailServices.sendEmail({
         to: email,
         subject: "Xác thực tài khoản",

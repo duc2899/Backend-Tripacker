@@ -142,11 +142,9 @@ const handleCheckExitTripType = async (tripType) => {
  * @returns {number}
  */
 const handleCaculatorDistance = (from, to) => {
-  return (
-    haversine(
-      { lat: from.lat, longitude: from.lon },
-      { latitude: to.lat, longitude: to.lon }
-    ) / 1000
+  return haversine(
+    { latitude: from.lat, longitude: from.lon },
+    { latitude: to.lat, longitude: to.lon }
   );
 };
 

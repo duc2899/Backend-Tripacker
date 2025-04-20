@@ -140,6 +140,7 @@ const getDataImageAndSave = async (spreadsheetId, sheetName) => {
           // 3. Upload ảnh lên Cloudinary
           const result = await cloudinary.uploader.upload(imageUrl, {
             folder: "backgrounds",
+            format: "webp", // chuyển ảnh sang định dạng webp
           });
 
           console.log(`✅ Uploaded: ${result.secure_url}`);

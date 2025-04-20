@@ -44,6 +44,13 @@ router.post(
   myTemplateController.createActivity
 );
 
+router.post(
+  "/reOrderActivity",
+  authMiddleware,
+  myTemplateController.checkPermission,
+  myTemplateController.reOrderActivity
+);
+
 router.get(
   "/getSuggestActivity/:templateId",
   authMiddleware,

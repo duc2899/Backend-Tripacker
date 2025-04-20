@@ -1,4 +1,5 @@
 const axios = require("axios");
+const mongoose = require("mongoose");
 
 const TemplateModel = require("../models/templatesModel");
 const TripActivityModel = require("../models/tripActivityModel");
@@ -8,6 +9,7 @@ const {
   createTripActivitySchema,
   editTripActivitySchema,
   deleteTripActivitySchema,
+  reOrderTripActivitySchema,
 } = require("../validators/tripActivity.validator");
 const {
   validateUpdateTripTimeLine,
@@ -23,6 +25,8 @@ const {
   handleCheckStartAndEndDate,
   handleUpdateListMembers,
 } = require("../logics/template.logic");
+
+const { getCache, setCache } = require("../utils/redisHelper");
 
 const MyTemplateService = {
   async getTripTimeLine(reqUser, templateId) {
@@ -55,7 +59,7 @@ const MyTemplateService = {
     }
 
     const activities = await TripActivityModel.find({
-      tepmplate: templateId,
+      template: templateId,
     }).lean();
 
     const resulttData = {
@@ -66,8 +70,7 @@ const MyTemplateService = {
         background: template.background.background,
         role: member?.role,
       },
-      tripActivities: activities,
-      memberTaks: [],
+      tripActivities: sortedActivities(activities),
     };
 
     return resulttData;
@@ -221,23 +224,31 @@ const MyTemplateService = {
 
       // Create a new trip activity
       let tripActivity = await TripActivityModel.findOne({
-        tepmplate: templateId,
+        template: templateId,
         date,
       });
 
       if (!tripActivity) {
         tripActivity = new TripActivityModel({
-          tepmplate: templateId,
+          template: templateId,
           date,
           activities: [],
         });
       }
+
       const isAlreadyExitTime = tripActivity.activities.some(
         (activity) => activity.time === time
       );
       if (isAlreadyExitTime) {
         throwError("TEM-030");
       }
+
+      let maxOrder = tripActivity.activities.reduce(
+        (max, activity) => Math.max(max, activity.order ?? 0),
+        0
+      );
+      maxOrder++;
+
       tripActivity.activities.push({
         title,
         time,
@@ -245,13 +256,17 @@ const MyTemplateService = {
         cost,
         type,
         icon,
+        order: maxOrder,
       });
+
+      tripActivity.activities.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
       const newActivity = tripActivity;
       // Save the activity
+
       await newActivity.save();
 
-      return newActivity;
+      return newActivity.toObject();
     } catch (error) {
       throwError(error.message);
     }
@@ -277,29 +292,57 @@ const MyTemplateService = {
         throwError("TEM-031");
       }
 
-      const oldActivity = tripActivity.activities[activityIndex];
       const fields = ["title", "time", "location", "cost", "type", "icon"];
 
-      const updatedActivity = { _id: activityId };
-
       fields.forEach((field) => {
-        updatedActivity[field] =
-          req.body[field] !== undefined ? req.body[field] : oldActivity[field];
+        if (data[field] !== undefined) {
+          tripActivity.activities[activityIndex][field] = data[field];
+        }
       });
 
-      tripActivity.activities[activityIndex] = updatedActivity;
+      tripActivity.activities.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
       await tripActivity.save();
 
-      return tripActivity;
+      return tripActivity.toObject();
     } catch (error) {
       throwError(error);
+    }
+  },
+
+  async reOrderActivity(data) {
+    try {
+      const { activities, tripActivityId } = data;
+
+      await reOrderTripActivitySchema.validate(data);
+
+      const tripActivity = await TripActivityModel.findOne({
+        _id: tripActivityId,
+      });
+
+      activities.forEach(({ _id, order }) => {
+        const act = tripActivity.activities.id(
+          new mongoose.Types.ObjectId(_id)
+        );
+        if (act) {
+          act.order = order;
+        }
+      });
+
+      tripActivity.activities.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+      await tripActivity.save();
+      return tripActivity.toObject();
+    } catch (error) {
+      throwError(error.message);
     }
   },
 
   async deleteActivity(data) {
     try {
       const { activityId, tripActivityId } = data;
-      await deleteTripActivitySchema(data);
+
+      await deleteTripActivitySchema.validate(data);
 
       const tripActivity = await TripActivityModel.findById(tripActivityId);
 
@@ -317,7 +360,11 @@ const MyTemplateService = {
 
       tripActivity.activities.splice(activityIndex, 1);
 
+      tripActivity.activities.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
       await tripActivity.save();
+
+      return tripActivity.toObject();
     } catch (error) {
       throwError(error);
     }
@@ -342,6 +389,16 @@ const MyTemplateService = {
   async getSuggestActivityFromAI(req) {
     const { userId } = req.user;
     const { templateId } = req.params;
+
+    // Tạo cache key dựa trên templateId
+    const cacheKey = `ai_suggestions:template:${templateId}`;
+
+    // Thử lấy từ cache trước
+    const cachedData = await getCache(cacheKey);
+    if (cachedData) {
+      return cachedData;
+    }
+
     const template = await TemplateModel.findOne({
       _id: templateId,
       owner: userId,
@@ -360,7 +417,7 @@ const MyTemplateService = {
     Toi se di ${to.destination} tu ${startDate} den ${endDate}, ngan sach ${budget}đ cho ${members} nguoi.  
     Loai chuyen: ${tripType}, phuong tien: ${vihicle}.  
     Hay goi y 10 dia diem: Cac hoat dong/dia diem tham quan noi tieng phu hop.
-    Tra ve JSON dung dinh dang sau:
+    Tra ve JSON dung dinh dang sau: Trong locaiton tra ve lat, lon, name
     {
       "activities": [
         { "location": "", "description": "", "cost": 10VND }
@@ -390,10 +447,10 @@ const MyTemplateService = {
     const activitiesWithImages = await Promise.all(
       lastValidJSON.activities.map(async (activity) => {
         try {
-          const images = await searchImagesByLocation(activity.location);
+          const images = await searchImagesByLocation(activity.location.name);
           return {
             ...activity,
-            image: images[0] || null, // lấy 1 ảnh đầu tiên
+            image: images[0] || null,
           };
         } catch (err) {
           console.error(
@@ -408,9 +465,14 @@ const MyTemplateService = {
       })
     );
 
-    return {
+    const result = {
       activities: activitiesWithImages,
     };
+
+    // Lưu vào cache với TTL 24h (86400 giây)
+    await setCache(cacheKey, result, 86400);
+
+    return result;
   },
 };
 
@@ -443,6 +505,15 @@ const searchImagesByLocation = async (location) => {
 
   const images = response.data.items.map((item) => item.link);
   return images;
+};
+
+const sortedActivities = (activities) => {
+  return activities.map((trip) => ({
+    ...trip,
+    activities: trip.activities?.sort(
+      (a, b) => (a.order ?? 0) - (b.order ?? 0)
+    ),
+  }));
 };
 
 module.exports = MyTemplateService;

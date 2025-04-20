@@ -14,8 +14,9 @@ const activitySchema = new mongoose.Schema(
       default: "",
     },
     location: {
-      type: String,
-      default: "",
+      destination: { type: String, required: true },
+      lat: { type: Number, required: true },
+      lon: { type: Number, required: true },
     },
     completed: {
       type: Boolean,
@@ -24,6 +25,7 @@ const activitySchema = new mongoose.Schema(
     cost: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
+    order: { type: Number, default: 1 },
   },
   {
     timestamps: true,
@@ -33,7 +35,7 @@ const activitySchema = new mongoose.Schema(
 const tripActivitySchema = new mongoose.Schema({
   date: { type: String, required: true },
   activities: [activitySchema],
-  tepmplate: {
+  template: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "templates",
     required: true,
