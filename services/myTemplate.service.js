@@ -67,7 +67,7 @@ const MyTemplateService = {
         ...template.toObject(),
         owner: template.owner.email,
         tripType: template.tripType.name,
-        background: template.background.background,
+        background: template.background.background.url,
         role: member?.role,
       },
       tripActivities: sortedActivities(activities),
