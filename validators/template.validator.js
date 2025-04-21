@@ -181,6 +181,11 @@ const deleteMembersSchema = yup.object().shape({
   templateId: objectIdSchema,
 });
 
+const getSuggestAISchema = yup.object().shape({
+  forceUpdate: yup.string().typeError("AUTH-030").nullable(),
+  templateId: objectIdSchema,
+});
+
 const middleCheckPermissionSchema = objectIdSchema;
 
 module.exports = {
@@ -190,4 +195,5 @@ module.exports = {
   updateRoleSchema,
   deleteMembersSchema,
   middleCheckPermissionSchema,
+  getSuggestAISchema,
 };

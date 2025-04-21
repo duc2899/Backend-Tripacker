@@ -17,6 +17,7 @@ const {
   updateRoleSchema,
   middleCheckPermissionSchema,
   deleteMembersSchema,
+  getSuggestAISchema,
 } = require("../validators/template.validator");
 const {
   handleCaculatorDistance,
@@ -414,6 +415,8 @@ const MyTemplateService = {
   async getSuggestActivityFromAI(reqUser, data) {
     const { userId } = reqUser;
     const { templateId, forceUpdate } = data;
+
+    await getSuggestAISchema.validate(data);
 
     const template = await TemplateModel.findOne({
       _id: templateId,

@@ -13,6 +13,7 @@ const {
   handleCheckExitTripType,
   handleCaculatorDistance,
 } = require("../logics/template.logic");
+const { MAX_TEMPLATES_PER_USER } = require("../config/constant");
 
 const TemplateService = {
   async getTemplate(templateId) {
@@ -46,6 +47,12 @@ const TemplateService = {
         from,
         to,
       } = data;
+
+      const user = await UserModel.findById(userId);
+
+      if (user.countTemplates > MAX_TEMPLATES_PER_USER) {
+        throwError("TEM-035");
+      }
 
       // Kiểm tra dữ liệu
       await createTemplteSchema.validate(data);
@@ -90,6 +97,9 @@ const TemplateService = {
         from,
         to,
       });
+
+      user.countTemplates++;
+      user.save({ validateModifiedOnly: true });
 
       return newTemplate._id;
     } catch (error) {
