@@ -2,18 +2,17 @@ const router = require("express").Router();
 const userController = require("../controllers/userController");
 const authMiddleware = require("../middlewares/authMiddleware");
 const upload = require("../middlewares/upload");
-// User routes
-// router.get("/me", authMiddleware, userController.getMe);
+
 router.get(
   "/userInformation",
-  authMiddleware,
+  authMiddleware(),
   userController.getUserInformation
 );
-router.get("/templateOwner", authMiddleware, userController.getTemplateOwner);
-router.post("/update", authMiddleware, userController.updateUser);
+router.get("/templateOwner", authMiddleware(), userController.getTemplateOwner);
+router.post("/update", authMiddleware(), userController.updateUser);
 router.post(
   "/updateAvatar",
-  authMiddleware,
+  authMiddleware(),
   upload.single("avatar"),
   userController.upateAvatar
 );

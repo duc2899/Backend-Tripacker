@@ -16,7 +16,7 @@ const {
   TIME_CHANGE_PASSWORD,
   TIME_VERIFY_ACCOUNT,
 } = require("../config/constant");
-const { checkBirthDay, sanitizeAndValidate } = require("../utils/index.js");
+const { checkBirthDay } = require("../utils/index.js");
 const {
   registerSchema,
   verifyEmailSchema,

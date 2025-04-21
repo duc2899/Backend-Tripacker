@@ -91,6 +91,8 @@ const templatesSchema = new mongoose.Schema(
       maxlength: 200,
       default: "", // Added maxlength
     },
+    countCallSuggest: { type: Number, default: 0 },
+    lastCallSuggest: { type: Date, default: null },
   },
   { timestamps: true }
 );

@@ -7,13 +7,13 @@ router.post("/create", authMiddleware, templateController.createTemplate);
 
 router.post(
   "/updateCategoryPacks",
-  authMiddleware,
+  authMiddleware(),
   templateController.updateCategoryPacks
 );
 
 router.get(
   "/getTemplate/:templateId",
-  authMiddleware,
+  authMiddleware(),
   templateController.getTemplate
 );
 
@@ -21,7 +21,7 @@ router.get("/search", templateController.searchTemplates);
 
 router.get(
   "/searchUsers",
-  authMiddleware,
+  authMiddleware(),
   templateController.searchUsersByEmail
 );
 

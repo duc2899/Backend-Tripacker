@@ -4,7 +4,7 @@ const backgroundTemplateController = require("../controllers/backgroundTemplateC
 
 router.get(
   "/fectchDataImageBackground",
-  authMiddleware,
+  authMiddleware(),
   backgroundTemplateController.fectchDataImageBackground
 );
 router.get(

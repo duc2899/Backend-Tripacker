@@ -48,6 +48,7 @@ const editTripActivitySchema = yup.object().shape({
   activityId: objectIdSchema,
   tripActivityId: objectIdSchema,
   templateId: objectIdSchema,
+  completed: yup.boolean().typeError("AUTH-030").nullable(),
   location: yup
     .object({
       destination: yup.string().typeError("AUTH-030").nullable(),

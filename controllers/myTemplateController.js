@@ -73,7 +73,10 @@ exports.updateRoleMember = async (req, res, next) => {
 
 exports.getSuggestActivity = async (req, res, next) => {
   try {
-    const result = await myTemplateService.getSuggestActivityFromAI(req);
+    const result = await myTemplateService.getSuggestActivityFromAI(
+      req.user,
+      req.query
+    );
     return res.status(200).json({
       message: "COMMON-002",
       data: result,
@@ -138,10 +141,12 @@ exports.reOrderActivity = async (req, res, next) => {
 
 exports.checkPermission = async (req, res, next) => {
   try {
-    await myTemplateService.middleCheckEditPermission(
-      req.user,
-      req.body.templateId
-    );
+    const { templateId } = {
+      ...req.params,
+      ...req.body,
+      ...req.query,
+    };
+    await myTemplateService.middleCheckEditPermission(req.user, templateId);
     next();
   } catch (error) {
     next(error);

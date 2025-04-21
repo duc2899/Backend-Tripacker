@@ -27,6 +27,7 @@ const {
 } = require("../logics/template.logic");
 
 const { getCache, setCache } = require("../utils/redisHelper");
+const { MAX_CALL_SUGGEST } = require("../config/constant");
 
 const MyTemplateService = {
   async getTripTimeLine(reqUser, templateId) {
@@ -62,6 +63,18 @@ const MyTemplateService = {
       template: templateId,
     }).lean();
 
+    const sortedActivities = () => {
+      return activities.map((trip) => ({
+        ...trip,
+        activities: trip.activities?.sort((a, b) => {
+          if (a.completed === b.completed) {
+            return (a.order ?? 0) - (b.order ?? 0);
+          }
+          return a.completed ? 1 : -1;
+        }),
+      }));
+    };
+
     const resulttData = {
       infor: {
         ...template.toObject(),
@@ -70,7 +83,7 @@ const MyTemplateService = {
         background: template.background.background.url,
         role: member?.role,
       },
-      tripActivities: sortedActivities(activities),
+      tripActivities: sortedActivities(),
     };
 
     return resulttData;
@@ -115,6 +128,7 @@ const MyTemplateService = {
       "vihicle",
       "healthNotes",
       "description",
+      "completed",
     ];
 
     fieldsToUpdate.forEach((key) => {
@@ -259,14 +273,15 @@ const MyTemplateService = {
         order: maxOrder,
       });
 
-      tripActivity.activities.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
       const newActivity = tripActivity;
       // Save the activity
 
       await newActivity.save();
 
-      return newActivity.toObject();
+      const result = tripActivity.toObject();
+      result.activities = handelSortedActivities(result.activities);
+
+      return result;
     } catch (error) {
       throwError(error.message);
     }
@@ -292,7 +307,15 @@ const MyTemplateService = {
         throwError("TEM-031");
       }
 
-      const fields = ["title", "time", "location", "cost", "type", "icon"];
+      const fields = [
+        "title",
+        "time",
+        "location",
+        "cost",
+        "type",
+        "icon",
+        "completed",
+      ];
 
       fields.forEach((field) => {
         if (data[field] !== undefined) {
@@ -300,11 +323,11 @@ const MyTemplateService = {
         }
       });
 
-      tripActivity.activities.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
       await tripActivity.save();
+      const result = tripActivity.toObject();
+      result.activities = handelSortedActivities(result.activities);
 
-      return tripActivity.toObject();
+      return result;
     } catch (error) {
       throwError(error);
     }
@@ -329,10 +352,11 @@ const MyTemplateService = {
         }
       });
 
-      tripActivity.activities.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
       await tripActivity.save();
-      return tripActivity.toObject();
+      const result = tripActivity.toObject();
+      result.activities = handelSortedActivities(result.activities);
+
+      return result;
     } catch (error) {
       throwError(error.message);
     }
@@ -360,11 +384,12 @@ const MyTemplateService = {
 
       tripActivity.activities.splice(activityIndex, 1);
 
-      tripActivity.activities.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
       await tripActivity.save();
 
-      return tripActivity.toObject();
+      const result = tripActivity.toObject();
+      result.activities = handelSortedActivities(result.activities);
+
+      return result;
     } catch (error) {
       throwError(error);
     }
@@ -386,93 +411,125 @@ const MyTemplateService = {
     }
   },
 
-  async getSuggestActivityFromAI(req) {
-    const { userId } = req.user;
-    const { templateId } = req.params;
-
-    // Tạo cache key dựa trên templateId
-    const cacheKey = `ai_suggestions:template:${templateId}`;
-
-    // Thử lấy từ cache trước
-    const cachedData = await getCache(cacheKey);
-    if (cachedData) {
-      return cachedData;
-    }
+  async getSuggestActivityFromAI(reqUser, data) {
+    const { userId } = reqUser;
+    const { templateId, forceUpdate } = data;
 
     const template = await TemplateModel.findOne({
       _id: templateId,
       owner: userId,
-    })
-      .populate("tripType")
-      .lean();
+    }).populate("tripType");
 
     if (!template) {
       throwError("TEM-015");
     }
 
-    const { to, startDate, endDate, budget, members, vihicle } = template;
-    const tripType = template.tripType.name;
+    // Kiểm tra qua ngày mới để reset count
+    const now = new Date();
+    const lastCallDate = template.lastCallSuggest
+      ? new Date(template.lastCallSuggest).toDateString()
+      : null;
 
-    const prompt = `
-    Toi se di ${to.destination} tu ${startDate} den ${endDate}, ngan sach ${budget}đ cho ${members} nguoi.  
-    Loai chuyen: ${tripType}, phuong tien: ${vihicle}.  
-    Hay goi y 10 dia diem: Cac hoat dong/dia diem tham quan noi tieng phu hop.
-    Tra ve JSON dung dinh dang sau: Trong locaiton tra ve lat, lon, name
-    {
-      "activities": [
-        { "location": "", "description": "", "cost": 10VND }
-      ],
+    if (lastCallDate !== now.toDateString()) {
+      template.countCallSuggest = 0;
+      template.lastCallSuggest = now;
+      await template.save();
     }
-    `.trim();
 
-    const aiResponse = await callAI(prompt);
-    const cleaned = aiResponse.replace(/```json|```/g, "").trim();
+    const cacheKey = `ai_suggestions:template:${templateId}`;
 
-    let lastValidJSON = null;
-    for (let i = cleaned.length; i > 0; i--) {
-      const slice = cleaned.slice(0, i);
-      try {
-        lastValidJSON = JSON.parse(slice);
-        break;
-      } catch (err) {
-        continue;
+    // Thử lấy từ cache trước khi call AI (để có thể fallback sau này)
+    const cachedData = await getCache(cacheKey);
+
+    if (
+      !forceUpdate ||
+      forceUpdate !== "true" ||
+      template.countCallSuggest > MAX_CALL_SUGGEST
+    ) {
+      if (cachedData) {
+        return cachedData;
       }
     }
 
-    if (!lastValidJSON) {
-      throwError("AI-002", 500, "FAILED_TO_PARSE_AI_JSON");
-    }
+    try {
+      const { to, startDate, endDate, budget, members, vihicle } = template;
+      const tripType = template.tripType.name;
 
-    // Tìm ảnh cho từng location
-    const activitiesWithImages = await Promise.all(
-      lastValidJSON.activities.map(async (activity) => {
+      const prompt = `
+      Toi se di ${to.destination} tu ${startDate} den ${endDate}, ngan sach ${budget}đ cho ${members} nguoi.  
+      Loai chuyen: ${tripType}, phuong tien: ${vihicle}.  
+      Hay goi y 10 dia diem: Cac hoat dong/dia diem tham quan noi tieng phu hop.
+      Tra ve JSON dung dinh dang sau: Trong locaiton tra ve lat, lon, name
+      {
+        "activities": [
+          { "location": "", "description": "", "cost": 10VND }
+        ],
+      }
+      `.trim();
+
+      const aiResponse = await callAI(prompt);
+      const cleaned = aiResponse.replace(/```json|```/g, "").trim();
+
+      let lastValidJSON = null;
+      for (let i = cleaned.length; i > 0; i--) {
+        const slice = cleaned.slice(0, i);
         try {
-          const images = await searchImagesByLocation(activity.location.name);
-          return {
-            ...activity,
-            image: images[0] || null,
-          };
+          lastValidJSON = JSON.parse(slice);
+          break;
         } catch (err) {
-          console.error(
-            `Lỗi khi tìm ảnh cho ${activity.location}:`,
-            err.message
-          );
-          return {
-            ...activity,
-            image: null,
-          };
+          continue;
         }
-      })
-    );
+      }
+      if (!lastValidJSON) {
+        // Thử lấy từ cache nếu có
+        if (cachedData) {
+          return cachedData;
+        }
+        // Nếu không có cache, throw error
+        result = {
+          activities: [],
+        };
+      }
 
-    const result = {
-      activities: activitiesWithImages,
-    };
+      const activitiesWithImages = await Promise.all(
+        lastValidJSON.activities.map(async (activity) => {
+          try {
+            const images = await searchImagesByLocation(activity.location.name);
+            return {
+              ...activity,
+              image: images[0] || null,
+            };
+          } catch (err) {
+            console.error(
+              `Lỗi khi tìm ảnh cho ${activity.location}:`,
+              err.message
+            );
+            return {
+              ...activity,
+              image: null,
+            };
+          }
+        })
+      );
 
-    // Lưu vào cache với TTL 24h (86400 giây)
-    await setCache(cacheKey, result, 86400);
+      const result = {
+        activities: activitiesWithImages,
+      };
 
-    return result;
+      template.countCallSuggest++;
+      template.lastCallSuggest = now;
+      await template.save();
+
+      await setCache(cacheKey, result, 86400);
+      return result;
+    } catch (error) {
+      if (cachedData) {
+        return cachedData;
+      }
+      result = {
+        activities: [],
+      };
+    }
   },
 };
 
@@ -507,13 +564,15 @@ const searchImagesByLocation = async (location) => {
   return images;
 };
 
-const sortedActivities = (activities) => {
-  return activities.map((trip) => ({
-    ...trip,
-    activities: trip.activities?.sort(
-      (a, b) => (a.order ?? 0) - (b.order ?? 0)
-    ),
-  }));
+const handelSortedActivities = (activities) => {
+  return activities?.sort((a, b) => {
+    // Nếu cả 2 đều completed hoặc chưa completed thì sắp xếp theo order
+    if (a.completed === b.completed) {
+      return (a.order ?? 0) - (b.order ?? 0);
+    }
+    // Đẩy completed xuống cuối
+    return a.completed ? 1 : -1;
+  });
 };
 
 module.exports = MyTemplateService;

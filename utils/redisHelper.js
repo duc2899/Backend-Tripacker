@@ -37,8 +37,19 @@ async function deleteCache(key) {
   }
 }
 
+async function deleteAllCache() {
+  try {
+    await redis.flushall();
+    return true;
+  } catch (error) {
+    console.error("Redis deleteCache error:", error);
+    return false;
+  }
+}
+
 module.exports = {
   setCache,
   getCache,
   deleteCache,
+  deleteAllCache,
 };
