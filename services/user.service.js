@@ -6,11 +6,7 @@ const cloudinary = require("../config/cloudinary.js");
 const User = require("../models/userModel");
 const Template = require("../models/templatesModel.js");
 const throwError = require("../utils/throwError");
-const {
-  checkBirthDay,
-  checkPhoneNumberVN,
-  sanitizeAndValidate,
-} = require("../utils/index.js");
+const { checkBirthDay, checkPhoneNumberVN } = require("../utils/index.js");
 const { updateUserSchema } = require("../validators/user.validator.js");
 
 const Userservice = {
@@ -111,9 +107,9 @@ const Userservice = {
     }
   },
 
-  async getTemplateOwner(req) {
-    const { userId } = req.user;
-    const templates = await Template.find({ user: userId })
+  async getTemplateOwner(reqUser) {
+    const { userId } = reqUser;
+    const templates = await Template.find({ owner: userId })
       .populate("tripType", "name")
       .populate("background", "background")
       .select("title description members createdAt buget _id")

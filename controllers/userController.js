@@ -30,7 +30,7 @@ exports.getUserInformation = async (req, res, next) => {
 
 exports.getTemplateOwner = async (req, res, next) => {
   try {
-    const user = await userService.getTemplateOwner(req);
+    const user = await userService.getTemplateOwner(req.user);
 
     return res.status(200).json({
       status: true,
