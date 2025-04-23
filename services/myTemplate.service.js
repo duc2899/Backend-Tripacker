@@ -77,6 +77,11 @@ const MyTemplateService = {
       }));
     };
 
+    const suggestActivity = await this.getSuggestActivityFromAI(reqUser, {
+      templateId: templateId,
+      forceUpdate: false,
+    });
+
     const resulttData = {
       infor: {
         ...template.toObject(),
@@ -86,6 +91,7 @@ const MyTemplateService = {
         role: member?.role,
       },
       tripActivities: sortedActivities(),
+      suggestActivity: suggestActivity.activities,
     };
 
     return resulttData;

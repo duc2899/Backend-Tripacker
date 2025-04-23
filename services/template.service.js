@@ -48,9 +48,11 @@ const TemplateService = {
         to,
       } = data;
 
-      const user = await UserModel.findById(userId);
+      const countTemplates = await TemplateModel.countDocuments({
+        owner: userId,
+      }).lean();
 
-      if (user.countTemplates >= MAX_TEMPLATES_PER_USER) {
+      if (countTemplates >= MAX_TEMPLATES_PER_USER) {
         throwError("TEM-035");
       }
 
@@ -97,9 +99,6 @@ const TemplateService = {
         from,
         to,
       });
-
-      user.countTemplates++;
-      user.save({ validateModifiedOnly: true });
 
       return newTemplate._id;
     } catch (error) {

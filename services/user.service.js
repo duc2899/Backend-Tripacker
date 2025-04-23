@@ -111,11 +111,19 @@ const Userservice = {
     const { userId } = reqUser;
     const templates = await Template.find({ owner: userId })
       .populate("tripType", "name")
-      .populate("background", "background")
+      .populate({
+        path: "background",
+        select: "background.url",
+      })
       .select("title description members createdAt buget _id")
       .lean();
 
-    return templates;
+    // Transform the templates to only include background URL
+    return templates.map((template) => ({
+      ...template,
+      background: template.background?.background?.url || "",
+      tripType: template.tripType?.name || "",
+    }));
   },
 };
 

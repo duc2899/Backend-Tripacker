@@ -89,7 +89,6 @@ const userSchema = new mongoose.Schema(
       default: "user",
       enum: ["admin", "user"],
     },
-    countTemplates: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
