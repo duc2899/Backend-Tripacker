@@ -72,4 +72,12 @@ router.post(
   myTemplateController.deleteActivity
 );
 
+// ----------------------------- Trip Asstitant ----------------------
+
+router.get(
+  "/getTripAsstitant/:templateId",
+  authMiddleware(),
+  myTemplateController.getTripAsstitant
+);
+
 module.exports = router;

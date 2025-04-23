@@ -50,7 +50,7 @@ const TemplateService = {
 
       const user = await UserModel.findById(userId);
 
-      if (user.countTemplates > MAX_TEMPLATES_PER_USER) {
+      if (user.countTemplates >= MAX_TEMPLATES_PER_USER) {
         throwError("TEM-035");
       }
 

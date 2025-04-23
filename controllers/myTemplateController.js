@@ -152,3 +152,21 @@ exports.checkPermission = async (req, res, next) => {
     next(error);
   }
 };
+
+//--------------------- Trip Asstitant -------------------------------
+
+exports.getTripAsstitant = async (req, res, next) => {
+  try {
+    const result = await myTemplateService.getTripAsstitant(
+      req.user,
+      req.params.templateId
+    );
+    return res.status(200).json({
+      message: "COMMON-002",
+      data: result,
+      status: true,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

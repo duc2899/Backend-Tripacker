@@ -31,6 +31,7 @@ const { getCache, setCache } = require("../utils/redisHelper");
 const { MAX_CALL_SUGGEST } = require("../config/constant");
 
 const MyTemplateService = {
+  // ------------------------ Trip Time Line =====------------------ //
   async getTripTimeLine(reqUser, templateId) {
     const { email, userId, fullName } = reqUser;
 
@@ -534,6 +535,90 @@ const MyTemplateService = {
       };
     }
   },
+
+  // ------------------------ Trip Asstitant --------------------- //
+
+  async getTripAsstitant(reqUser, templateId) {
+    const { email, userId, fullName } = reqUser;
+
+    const template = await TemplateModel.findById(templateId)
+      .populate("pack tripType")
+      .select(
+        "pack healthNotes listMembers to startDate tripType endDate budget members vihicle"
+      );
+
+    if (!template) {
+      throwError("TEM-012");
+    }
+
+    const member = template.listMembers.find(
+      (member) => member.email && member.email === email
+    );
+
+    if (!member) {
+      throwError("TEM-029", 403);
+    }
+
+    // Cập nhật thông tin user nếu chưa có
+    if (!member.user) {
+      member.user = userId;
+      member.name = fullName;
+      member.isRegistered = true;
+      await template.save(); // Save luôn thay vì gọi lại findById
+    }
+    // const result = {
+    //   _id: template._id,
+    //   packs: template.pack.categories,
+    //   healthNotes: template.healthNotes,
+    // };
+
+    const result = await getSuggestPacksFromAI(
+      template,
+      template.pack.categories
+    );
+
+    return result;
+  },
+};
+
+const getSuggestPacksFromAI = async (template, packs) => {
+  try {
+    const { to, startDate, endDate, budget, members, vihicle } = template;
+    const tripType = template.tripType.name;
+
+    const prompt = `
+    Toi se di ${to.destination} tu ${startDate} den ${endDate}, ngan sach ${budget}đ cho ${members} nguoi.  
+    Loai chuyen: ${tripType}, phuong tien: ${vihicle}.  
+    Voi Packs ${packs} do nhu nay thi ban danh dau cho toi do nao can thiet nhe(isCheck=true)
+    LUU Y QUAN TRONG
+     - Tra ve voi toan bo danh sach ban dau
+     - Giu nguyen cau truc va dung dang JSON
+    `.trim();
+
+    const aiResponse = await callAI(prompt);
+    const cleaned = aiResponse.replace(/```json|```/g, "").trim();
+
+    try {
+      const result = JSON.parse(cleaned);
+      // Kiểm tra xem kết quả có đúng cấu trúc không
+      if (
+        Array.isArray(result) ||
+        (result.packs && Array.isArray(result.packs))
+      ) {
+        return result;
+      }
+      throw new Error("Invalid response structure");
+    } catch (err) {
+      // Thử các cách parse khác nếu cần
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      throw new Error("Cannot parse AI response");
+    }
+  } catch (error) {
+    throwError(error.message);
+  }
 };
 
 const checkEditPermission = (userId, permissions, role) => {
