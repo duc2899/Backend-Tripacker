@@ -55,3 +55,15 @@ exports.upateAvatar = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.deleteTemplate = async (req, res, next) => {
+  try {
+    await userService.deleteTemplate(req.user, req.body.templateId);
+    return res.status(200).json({
+      status: true,
+      message: "COMMON-003",
+    });
+  } catch (error) {
+    next(error);
+  }
+};

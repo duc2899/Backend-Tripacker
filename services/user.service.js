@@ -4,10 +4,16 @@ const path = require("path");
 const { MAX_SOCIAL_NETWORKS } = require("../config/constant");
 const cloudinary = require("../config/cloudinary.js");
 const User = require("../models/userModel");
-const Template = require("../models/templatesModel.js");
+const TemplateModel = require("../models/templatesModel.js");
+const TripActivityModel = require("../models/tripActivityModel");
+const PackModel = require("../models/packModel");
+
 const throwError = require("../utils/throwError");
 const { checkBirthDay, checkPhoneNumberVN } = require("../utils/index.js");
-const { updateUserSchema } = require("../validators/user.validator.js");
+const {
+  updateUserSchema,
+  deleteTemplateSchema,
+} = require("../validators/user.validator.js");
 
 const Userservice = {
   async updateUser(reqUser, data) {
@@ -109,7 +115,7 @@ const Userservice = {
 
   async getTemplateOwner(reqUser) {
     const { userId } = reqUser;
-    const templates = await Template.find({ owner: userId })
+    const templates = await TemplateModel.find({ owner: userId })
       .populate("tripType", "name")
       .populate({
         path: "background",
@@ -124,6 +130,34 @@ const Userservice = {
       background: template.background?.background?.url || "",
       tripType: template.tripType?.name || "",
     }));
+  },
+
+  async deleteTemplate(reqUser, templateId) {
+    try {
+      const { userId } = reqUser;
+      await deleteTemplateSchema.validate({ templateId });
+
+      const template = await TemplateModel.findById(templateId).lean();
+
+      if (!template) {
+        throwError("TEM-005");
+      }
+
+      if (template.owner.toString() !== userId) {
+        throwError("TEM-016");
+      }
+
+      // Delete related trip activities
+      await TripActivityModel.deleteMany({ template: templateId });
+
+      // Delete related pack
+      await PackModel.findByIdAndDelete(template.pack);
+
+      // Delete the template
+      await TemplateModel.findByIdAndDelete(templateId);
+    } catch (error) {
+      throwError(error.message);
+    }
   },
 };
 

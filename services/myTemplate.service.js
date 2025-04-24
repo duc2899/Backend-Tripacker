@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 
 const TemplateModel = require("../models/templatesModel");
 const TripActivityModel = require("../models/tripActivityModel");
+const PackModel = require("../models/packModel");
 const throwError = require("../utils/throwError");
 const { callAI } = require("./getSuggestAI");
 const {
@@ -550,7 +551,7 @@ const MyTemplateService = {
     const template = await TemplateModel.findById(templateId)
       .populate("pack tripType")
       .select(
-        "pack healthNotes listMembers to startDate tripType endDate budget members vihicle"
+        "pack healthNotes listMembers to startDate tripType endDate budget members vihicle hasAppliedAISuggestions"
       );
 
     if (!template) {
@@ -572,59 +573,90 @@ const MyTemplateService = {
       member.isRegistered = true;
       await template.save(); // Save luôn thay vì gọi lại findById
     }
-    // const result = {
-    //   _id: template._id,
-    //   packs: template.pack.categories,
-    //   healthNotes: template.healthNotes,
-    // };
+    return {
+      _id: template._id,
+      packs: template.pack.categories,
+      healthNotes: template.healthNotes,
+    };
+  },
 
-    const result = await getSuggestPacksFromAI(
-      template,
-      template.pack.categories
+  async getSuggestPacksFromAI(templateId) {
+    const template = await TemplateModel.findById(templateId).populate(
+      "pack tripType"
     );
 
-    return result;
-  },
-};
-
-const getSuggestPacksFromAI = async (template, packs) => {
-  try {
-    const { to, startDate, endDate, budget, members, vihicle } = template;
-    const tripType = template.tripType.name;
-
-    const prompt = `
-    Toi se di ${to.destination} tu ${startDate} den ${endDate}, ngan sach ${budget}đ cho ${members} nguoi.  
-    Loai chuyen: ${tripType}, phuong tien: ${vihicle}.  
-    Voi Packs ${packs} do nhu nay thi ban danh dau cho toi do nao can thiet nhe(isCheck=true)
-    LUU Y QUAN TRONG
-     - Tra ve voi toan bo danh sach ban dau
-     - Giu nguyen cau truc va dung dang JSON
-    `.trim();
-
-    const aiResponse = await callAI(prompt);
-    const cleaned = aiResponse.replace(/```json|```/g, "").trim();
+    if (!template) {
+      throwError("TEM-012");
+    }
 
     try {
-      const result = JSON.parse(cleaned);
-      // Kiểm tra xem kết quả có đúng cấu trúc không
-      if (
-        Array.isArray(result) ||
-        (result.packs && Array.isArray(result.packs))
-      ) {
-        return result;
+      const { to, startDate, endDate, budget, members, vihicle } = template;
+      const tripType = template.tripType.name;
+
+      const prompt = `
+      Toi se di ${
+        to.destination
+      } tu ${startDate} den ${endDate}, ngan sach ${budget}đ cho ${members} nguoi.  
+      Loai chuyen: ${tripType}, phuong tien: ${vihicle}.  
+      Voi Packs ${JSON.stringify(
+        template.pack.categories
+      )} do nhu nay thi ban danh dau cho toi do nao can thiet nhe(isCheck=true)
+      LUU Y QUAN TRONG
+       - Tra ve voi toan bo danh sach ban dau
+       - Giu nguyen cau truc va dung dang JSON
+       - Chi tra ve JSON, khong co text nao khac
+      `.trim();
+
+      const aiResponse = await callAI(prompt);
+
+      // Loại bỏ tất cả các ký tự không phải JSON
+      const cleaned = aiResponse
+        .replace(/```json|```/g, "") // Loại bỏ markdown
+        .replace(/[\n\r]/g, "") // Loại bỏ newline
+        .trim();
+
+      try {
+        // Tìm JSON trong chuỗi
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+        if (!jsonMatch) {
+          return template.pack.categories;
+        }
+
+        const result = JSON.parse(jsonMatch[0]);
+
+        // Kiểm tra cấu trúc kết quả
+        if (!Array.isArray(result)) {
+          console.log("Kết quả không phải là mảng");
+          return template.pack.categories;
+        }
+
+        // Only update the pack with AI-suggested items if it hasn't been done before
+        if (!template.hasAppliedAISuggestions) {
+          // Lấy instance của PackModel
+          const pack = await PackModel.findById(template.pack._id);
+          if (!pack) {
+            throwError("TEM-013");
+          }
+
+          // Cập nhật categories
+          pack.categories = result;
+          await pack.save();
+
+          // Cập nhật trạng thái đã apply AI suggestions
+          template.hasAppliedAISuggestions = true;
+          await template.save();
+
+          return result;
+        } else {
+          return template.pack.categories;
+        }
+      } catch (err) {
+        return template.pack.categories;
       }
-      throw new Error("Invalid response structure");
-    } catch (err) {
-      // Thử các cách parse khác nếu cần
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-      throw new Error("Cannot parse AI response");
+    } catch (error) {
+      return template.pack.categories;
     }
-  } catch (error) {
-    throwError(error.message);
-  }
+  },
 };
 
 const checkEditPermission = (userId, permissions, role) => {

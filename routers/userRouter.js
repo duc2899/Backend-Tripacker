@@ -16,5 +16,6 @@ router.post(
   upload.single("avatar"),
   userController.upateAvatar
 );
+router.post("/deleteTemplate", authMiddleware(), userController.deleteTemplate);
 
 module.exports = router;

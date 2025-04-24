@@ -1,4 +1,16 @@
+const mongoose = require("mongoose");
 const yup = require("yup");
+
+const objectIdSchema = yup
+  .string()
+  .required("AUTH-026")
+  .test("is-object-id", "AUTH-030", (value) => {
+    if (!value) return false;
+    // Kiểm tra độ dài 24 và chỉ chứa ký tự hex
+    return (
+      mongoose.Types.ObjectId.isValid(value) && /^[0-9a-fA-F]{24}$/.test(value)
+    );
+  });
 
 const updateUserSchema = yup.object().shape({
   fullName: yup
@@ -28,4 +40,8 @@ const updateUserSchema = yup.object().shape({
   phoneNumber: yup.string().typeError("AUTH-030").nullable().trim(),
 });
 
-module.exports = { updateUserSchema };
+const deleteTemplateSchema = yup.object().shape({
+  templateId: objectIdSchema,
+});
+
+module.exports = { updateUserSchema, deleteTemplateSchema };

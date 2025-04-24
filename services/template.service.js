@@ -4,6 +4,7 @@ const TemplateModel = require("../models/templatesModel");
 const DefaultItemModel = require("../models/defaultItemsModel");
 const BackgroundsTemplateModel = require("../models/backgroundTemplateModel");
 const TripTypeModel = require("../models/tripTypeModel");
+const TripActivity = require("../models/tripActivityModel");
 const { callAI } = require("./getSuggestAI");
 const throwError = require("../utils/throwError");
 const { createTemplteSchema } = require("../validators/template.validator");

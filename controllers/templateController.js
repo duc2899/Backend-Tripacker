@@ -4,10 +4,13 @@ const myTemplateService = require("../services/myTemplate.service");
 exports.createTemplate = async (req, res, next) => {
   try {
     const result = await templateService.createTemplate(req.user, req.body);
+
     await myTemplateService.getSuggestActivityFromAI(req.user, {
       templateId: result._id,
       forceUpdate: true,
     });
+
+    await myTemplateService.getSuggestPacksFromAI(result._id);
 
     return res.status(201).json({
       message: "COMMON-001",
