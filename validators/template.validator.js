@@ -186,6 +186,30 @@ const getSuggestAISchema = yup.object().shape({
   templateId: objectIdSchema,
 });
 
+const updateTripAssistantSchema = yup.object().shape({
+  categories: yup
+    .array()
+    .of(
+      yup.object().shape({
+        _id: objectIdSchema,
+        category: yup.string().typeError("AUTH-030").nullable(),
+        items: yup
+          .array()
+          .of(
+            yup.object().shape({
+              _id: objectIdSchema,
+              name: yup.string().typeError("AUTH-030").required("AUTH-026"),
+              isCheck: yup.boolean().typeError("AUTH-030").required("AUTH-026"),
+            })
+          )
+          .nullable(),
+      })
+    )
+    .nullable(),
+  healthNotes: yup.string().typeError("AUTH-030").nullable(),
+  templateId: objectIdSchema,
+});
+
 const middleCheckPermissionSchema = objectIdSchema;
 
 module.exports = {
@@ -196,4 +220,5 @@ module.exports = {
   deleteMembersSchema,
   middleCheckPermissionSchema,
   getSuggestAISchema,
+  updateTripAssistantSchema,
 };

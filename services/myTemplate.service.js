@@ -19,6 +19,7 @@ const {
   middleCheckPermissionSchema,
   deleteMembersSchema,
   getSuggestAISchema,
+  updateTripAssistantSchema,
 } = require("../validators/template.validator");
 const {
   handleCaculatorDistance,
@@ -405,18 +406,22 @@ const MyTemplateService = {
   },
 
   async middleCheckEditPermission(reqUser, templateId) {
-    const { userId } = reqUser;
+    try {
+      const { userId } = reqUser;
 
-    await middleCheckPermissionSchema.validate(templateId);
+      await middleCheckPermissionSchema.validate(templateId);
 
-    const template = await TemplateModel.findById(templateId)
-      .select("listMembers")
-      .lean();
-    if (!template) {
-      throwError("TEM-012");
-    }
-    if (!checkEditPermission(userId, template.listMembers, "edit")) {
-      throwError("TEM-029");
+      const template = await TemplateModel.findById(templateId)
+        .select("listMembers")
+        .lean();
+      if (!template) {
+        throwError("TEM-012");
+      }
+      if (!checkEditPermission(userId, template.listMembers, "edit")) {
+        throwError("TEM-029");
+      }
+    } catch (error) {
+      throwError(error.message);
     }
   },
 
@@ -655,6 +660,74 @@ const MyTemplateService = {
       }
     } catch (error) {
       return template.pack.categories;
+    }
+  },
+
+  async updateTripAssistant(data) {
+    try {
+      await updateTripAssistantSchema.validate(data);
+
+      const template = await TemplateModel.findById(data.templateId);
+      if (!template) {
+        throwError("TEM-012");
+      }
+
+      // Get the pack associated with the template
+      const pack = await PackModel.findById(template.pack);
+      if (!pack) {
+        throwError("TEM-013");
+      }
+
+      // Create a map of existing categories by ID for quick lookup
+      const existingCategoriesMap = new Map(
+        pack.categories.map((cat) => [cat._id.toString(), cat])
+      );
+
+      if (data.categories) {
+        // Process each category from the input data
+        data.categories.forEach((newCategory) => {
+          const existingCategory = existingCategoriesMap.get(newCategory._id);
+
+          if (existingCategory) {
+            // Only update category and isDefault if it's not a default category
+            if (!existingCategory.isDefault) {
+              existingCategory.category = newCategory.category;
+            }
+
+            // Create a map of existing items by ID for quick lookup
+            const existingItemsMap = new Map(
+              existingCategory.items.map((item) => [item._id.toString(), item])
+            );
+
+            // Process each item from the input data
+            newCategory.items.forEach((newItem) => {
+              const existingItem = existingItemsMap.get(newItem._id);
+
+              if (existingItem) {
+                // Update item properties
+                existingItem.name = newItem.name;
+                existingItem.isCheck = newItem.isCheck;
+              }
+            });
+          }
+        });
+      }
+
+      // Update health notes if provided
+      if (data.healthNotes !== undefined) {
+        template.healthNotes = data.healthNotes;
+      }
+
+      await pack.save();
+      await template.save();
+
+      return {
+        _id: template._id,
+        packs: pack.categories,
+        healthNotes: template.healthNotes,
+      };
+    } catch (error) {
+      throwError(error.message);
     }
   },
 };

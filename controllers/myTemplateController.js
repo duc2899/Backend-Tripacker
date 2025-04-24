@@ -170,3 +170,16 @@ exports.getTripAsstitant = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.updateTripAssistant = async (req, res, next) => {
+  try {
+    const result = await myTemplateService.updateTripAssistant(req.body);
+    return res.status(200).json({
+      message: "COMMON-003",
+      data: result,
+      status: true,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -8,6 +8,8 @@ const errorHandler = require("./middlewares/errorHandeler");
 const requestLogger = require("./middlewares/requestLogger");
 const rateLimiter = require("./middlewares/rateLimiter");
 
+const helmet = require("helmet");
+
 connectDB();
 
 const app = express();
@@ -28,6 +30,8 @@ app.use(
 
 // Kết nối MongoDB
 app.use(express.json());
+
+app.use(helmet());
 
 app.set("trust proxy", 1);
 

@@ -80,4 +80,11 @@ router.get(
   myTemplateController.getTripAsstitant
 );
 
+router.post(
+  "/updateTripAssistant",
+  authMiddleware(),
+  myTemplateController.checkPermission,
+  myTemplateController.updateTripAssistant
+);
+
 module.exports = router;
