@@ -2,9 +2,6 @@ const PackModel = require("../models/packModel");
 const UserModel = require("../models/userModel");
 const TemplateModel = require("../models/templatesModel");
 const DefaultItemModel = require("../models/defaultItemsModel");
-const BackgroundsTemplateModel = require("../models/backgroundTemplateModel");
-const TripTypeModel = require("../models/tripTypeModel");
-const TripActivity = require("../models/tripActivityModel");
 const { callAI } = require("./getSuggestAI");
 const throwError = require("../utils/throwError");
 const { createTemplteSchema } = require("../validators/template.validator");
@@ -17,19 +14,6 @@ const {
 const { MAX_TEMPLATES_PER_USER } = require("../config/constant");
 
 const TemplateService = {
-  async getTemplate(templateId) {
-    const template = await TemplateModel.findById(templateId)
-      .populate("pack")
-      .lean();
-    if (!template) {
-      throwError("TEM-005");
-    }
-
-    const responseTemplate = await getTemplateDetails(template);
-
-    return responseTemplate;
-  },
-
   async createTemplate(reqUser, data) {
     try {
       const { userId, email, fullName } = reqUser;
@@ -161,69 +145,6 @@ const TemplateService = {
     return lastValidJSON;
   },
 
-  async updateCategoryPacks(data, userId) {
-    const { packId, packItems, templateId, categoryId } = data;
-    if (!packId) {
-      throwError("TEM-007");
-    }
-
-    if (!Array.isArray(packItems) || packItems.length === 0) {
-      throwError("TEM-008");
-    }
-
-    for (const item of packItems) {
-      if (!item.name || typeof item.name !== "string") {
-        throwError("TEM-009");
-      }
-      if (typeof item.isCheck !== "boolean") {
-        throwError("TEM-010");
-      }
-    }
-
-    if (!templateId) {
-      throwError("TEM-011");
-    }
-
-    const template = await TemplateModel.findOne({
-      _id: templateId,
-      user: userId,
-    }).lean();
-    if (!template) {
-      throwError("TEM-012");
-    }
-
-    const pack = await PackModel.findById(packId);
-    if (!pack) {
-      throwError("TEM-013");
-    }
-
-    const category = pack.categories.find(
-      (cat) => cat._id.toString() === categoryId
-    );
-
-    if (!category) {
-      throwError("TEM-014");
-    }
-
-    const updatedItems = packItems.map((newItem) => {
-      const existingItem = category.items.find(
-        (item) => item._id && item._id.toString() === newItem._id
-      );
-      if (existingItem) {
-        // Update existing item
-        return { ...existingItem, ...newItem };
-      } else {
-        // Add new item
-        return { ...newItem, _id: undefined }; // Remove _id for new items
-      }
-    });
-
-    category.items = updatedItems;
-
-    await pack.save();
-    return pack;
-  },
-
   async searchTemplates(data) {
     const { page = 1, limit = 10, query } = data;
     const skip = (page - 1) * limit;
@@ -332,48 +253,6 @@ const TemplateService = {
       data: newListUser,
     };
   },
-};
-
-// Hàm dùng chung để lấy thông tin chi tiết của template
-const getTemplateDetails = async (template) => {
-  if (!template) {
-    throwError("TEM-005");
-  }
-
-  // Lấy thông tin tripType
-  const tripTypeData = await TripTypeModel.findById(template.tripType).lean();
-  if (!tripTypeData) {
-    throwError("TEM-026");
-  }
-
-  // Lấy thông tin background
-  const backgroundTemplateData = await BackgroundsTemplateModel.findById(
-    template.background
-  ).lean();
-  if (!backgroundTemplateData) {
-    throwError("TEM-025");
-  }
-
-  // Tạo bản sao mới của template để response
-  const responseTemplate = {
-    ...template, // Sao chép dữ liệu từ template gốc
-    tripType: {
-      _id: tripTypeData._id,
-      name: tripTypeData.name,
-    },
-    background: {
-      _id: backgroundTemplateData._id,
-      url: backgroundTemplateData.background.url,
-      id: backgroundTemplateData.background.id,
-    },
-  };
-
-  // Xóa các field không cần thiết
-  delete responseTemplate.backgroundId;
-  delete responseTemplate.tripTypeId;
-  delete responseTemplate.packId;
-
-  return responseTemplate;
 };
 
 module.exports = TemplateService;

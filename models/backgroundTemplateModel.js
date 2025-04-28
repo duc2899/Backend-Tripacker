@@ -16,5 +16,4 @@ const backgroundTemplateSchema = new mongoose.Schema({
     },
   },
 });
-
 module.exports = mongoose.model("bgTemplate", backgroundTemplateSchema);

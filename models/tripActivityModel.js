@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const activitySchema = new mongoose.Schema(
   {
-    title: { type: String, required: true },
+    note: { type: String,  default: ""},
     time: { type: String, default: "" }, // HH:mm
     type: {
       type: String,

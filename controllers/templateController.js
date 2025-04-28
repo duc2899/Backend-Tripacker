@@ -1,48 +1,22 @@
-const templateService = require("../services/template.service");
-const myTemplateService = require("../services/myTemplate.service");
+const TemplateService = require("../services/template.service");
+const TripTimeLineService = require("../services/myTemplates/tripTimeLine.service");
+const TripAsstitantService = require("../services/myTemplates/tripAsstitant.service");
 
 exports.createTemplate = async (req, res, next) => {
   try {
-    const result = await templateService.createTemplate(req.user, req.body);
+    const result = await TemplateService.createTemplate(req.user, req.body);
 
-    await myTemplateService.getSuggestActivityFromAI(req.user, {
+    await TripTimeLineService.getSuggestActivityFromAI(req.user, {
       templateId: result._id,
       forceUpdate: true,
     });
 
-    await myTemplateService.getSuggestPacksFromAI(result._id);
+    await TripAsstitantService.getSuggestPacksFromAI(result._id);
+
+    await TripAsstitantService.getSuggestChecklist(result._id);
 
     return res.status(201).json({
       message: "COMMON-001",
-      data: result,
-      status: true,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-exports.getTemplate = async (req, res, next) => {
-  try {
-    const result = await templateService.getTemplate(req.params.templateId);
-    res.status(200).json({
-      data: result,
-      message: "TEM-003",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-exports.updateCategoryPacks = async (req, res, next) => {
-  try {
-    const result = await templateService.updateCategoryPacks(
-      req.body,
-      req.user.userId
-    );
-
-    return res.status(200).json({
-      message: "TEM-004",
       data: result,
       status: true,
     });

@@ -1,8 +1,9 @@
-const myTemplateService = require("../services/myTemplate.service");
+const TripTimeLineService = require("../services/myTemplates/tripTimeLine.service");
+const TripAsstitantService = require("../services/myTemplates/tripAsstitant.service");
 
 exports.getTripTimeLine = async (req, res, next) => {
   try {
-    const result = await myTemplateService.getTripTimeLine(
+    const result = await TripTimeLineService.getTripTimeLine(
       req.user,
       req.params.templateId
     );
@@ -18,7 +19,7 @@ exports.getTripTimeLine = async (req, res, next) => {
 
 exports.updateTripTimeLine = async (req, res, next) => {
   try {
-    const result = await myTemplateService.updateTripTimeLine(
+    const result = await TripTimeLineService.updateTripTimeLine(
       req.user,
       req.body
     );
@@ -34,7 +35,7 @@ exports.updateTripTimeLine = async (req, res, next) => {
 
 exports.updateListMembers = async (req, res, next) => {
   try {
-    const result = await myTemplateService.updateListMembers(req.body);
+    const result = await TripTimeLineService.updateListMembers(req.body);
     return res.status(200).json({
       message: "COMMON-003",
       data: result,
@@ -47,7 +48,7 @@ exports.updateListMembers = async (req, res, next) => {
 
 exports.deleteMembers = async (req, res, next) => {
   try {
-    const result = await myTemplateService.deleteMembers(req.user, req.body);
+    const result = await TripTimeLineService.deleteMembers(req.user, req.body);
     return res.status(200).json({
       message: "COMMON-004",
       data: result,
@@ -60,7 +61,7 @@ exports.deleteMembers = async (req, res, next) => {
 
 exports.updateRoleMember = async (req, res, next) => {
   try {
-    const result = await myTemplateService.updateRoleMember(req.body);
+    const result = await TripTimeLineService.updateRoleMember(req.body);
     return res.status(200).json({
       message: "COMMON-003",
       data: result,
@@ -73,7 +74,7 @@ exports.updateRoleMember = async (req, res, next) => {
 
 exports.getSuggestActivity = async (req, res, next) => {
   try {
-    const result = await myTemplateService.getSuggestActivityFromAI(
+    const result = await TripTimeLineService.getSuggestActivityFromAI(
       req.user,
       req.query
     );
@@ -89,7 +90,7 @@ exports.getSuggestActivity = async (req, res, next) => {
 
 exports.createActivity = async (req, res, next) => {
   try {
-    const result = await myTemplateService.createActivity(req.body);
+    const result = await TripTimeLineService.createActivity(req.body);
     return res.status(201).json({
       message: "COMMON-001",
       data: result,
@@ -102,7 +103,7 @@ exports.createActivity = async (req, res, next) => {
 
 exports.editActivity = async (req, res, next) => {
   try {
-    const result = await myTemplateService.editActivity(req.body);
+    const result = await TripTimeLineService.editActivity(req.body);
     return res.status(200).json({
       message: "COMMON-003",
       data: result,
@@ -115,7 +116,7 @@ exports.editActivity = async (req, res, next) => {
 
 exports.deleteActivity = async (req, res, next) => {
   try {
-    const result = await myTemplateService.deleteActivity(req.body);
+    const result = await TripTimeLineService.deleteActivity(req.body);
     return res.status(200).json({
       message: "COMMON-004",
       status: true,
@@ -128,7 +129,7 @@ exports.deleteActivity = async (req, res, next) => {
 
 exports.reOrderActivity = async (req, res, next) => {
   try {
-    const result = await myTemplateService.reOrderActivity(req.body);
+    const result = await TripTimeLineService.reOrderActivity(req.body);
     return res.status(200).json({
       message: "COMMON-004",
       status: true,
@@ -146,7 +147,7 @@ exports.checkPermission = async (req, res, next) => {
       ...req.body,
       ...req.query,
     };
-    await myTemplateService.middleCheckEditPermission(req.user, templateId);
+    await TripTimeLineService.middleCheckEditPermission(req.user, templateId);
     next();
   } catch (error) {
     next(error);
@@ -157,7 +158,7 @@ exports.checkPermission = async (req, res, next) => {
 
 exports.getTripAsstitant = async (req, res, next) => {
   try {
-    const result = await myTemplateService.getTripAsstitant(
+    const result = await TripAsstitantService.getTripAsstitant(
       req.user,
       req.params.templateId
     );
@@ -173,9 +174,22 @@ exports.getTripAsstitant = async (req, res, next) => {
 
 exports.updateTripAssistant = async (req, res, next) => {
   try {
-    const result = await myTemplateService.updateTripAssistant(req.body);
+    const result = await TripAsstitantService.updateTripAssistant(req.body);
     return res.status(200).json({
       message: "COMMON-003",
+      data: result,
+      status: true,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.getSuggestChecklist = async (req, res, next) => {
+  try {
+    const result = await TripAsstitantService.getSuggestChecklist(req.body);
+    return res.status(200).json({
+      message: "COMMON-002",
       data: result,
       status: true,
     });

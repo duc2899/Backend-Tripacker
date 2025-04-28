@@ -1,41 +1,53 @@
 const axios = require("axios");
 const mongoose = require("mongoose");
 
-const TemplateModel = require("../models/templatesModel");
-const TripActivityModel = require("../models/tripActivityModel");
-const PackModel = require("../models/packModel");
-const throwError = require("../utils/throwError");
-const { callAI } = require("./getSuggestAI");
+const TemplateModel = require("../../models/templatesModel");
+const TripActivityModel = require("../../models/tripActivityModel");
+const throwError = require("../../utils/throwError");
+const { callAI } = require("../getSuggestAI");
 const {
   createTripActivitySchema,
   editTripActivitySchema,
   deleteTripActivitySchema,
   reOrderTripActivitySchema,
-} = require("../validators/tripActivity.validator");
+} = require("../../validators/tripActivity.validator");
 const {
-  validateUpdateTripTimeLine,
+  updateTripTimeLineSchema,
   updateListMembersSchema,
   updateRoleSchema,
   middleCheckPermissionSchema,
   deleteMembersSchema,
   getSuggestAISchema,
-  updateTripAssistantSchema,
-} = require("../validators/template.validator");
+} = require("../../validators/template.validator");
 const {
   handleCaculatorDistance,
   handleCheckExitBackground,
   handleCheckExitTripType,
   handleCheckStartAndEndDate,
   handleUpdateListMembers,
-} = require("../logics/template.logic");
+} = require("../../logics/template.logic");
 
-const { getCache, setCache } = require("../utils/redisHelper");
-const { MAX_CALL_SUGGEST } = require("../config/constant");
+const { getCache, setCache } = require("../../utils/redisHelper");
+const { MAX_CALL_SUGGEST } = require("../../config/constant");
 
-const MyTemplateService = {
+const TripTimeLineService = {
   // ------------------------ Trip Time Line =====------------------ //
   async getTripTimeLine(reqUser, templateId) {
     const { email, userId, fullName } = reqUser;
+
+    // Try to get from cache first
+    const cacheKey = `trip_timeline:${templateId}`;
+    const cachedData = await getCache(cacheKey);
+    if (cachedData) {
+      // Kiểm tra xem user có trong listMembers không
+      const member = cachedData.infor.listMembers.find(
+        (member) => member.email && member.email === email
+      );
+      if (!member) {
+        throwError("TEM-029", 403);
+      }
+      return cachedData;
+    }
 
     const template = await TemplateModel.findById(templateId)
       .populate("owner tripType background")
@@ -60,7 +72,7 @@ const MyTemplateService = {
       member.user = userId;
       member.name = fullName;
       member.isRegistered = true;
-      await template.save(); // Save luôn thay vì gọi lại findById
+      await template.save();
     }
 
     const activities = await TripActivityModel.find({
@@ -89,67 +101,93 @@ const MyTemplateService = {
         ...template.toObject(),
         owner: template.owner.email,
         tripType: template.tripType.name,
-        background: template.background.background.url,
+        background: template.background?.background?.url || null,
         role: member?.role,
       },
       tripActivities: sortedActivities(),
       suggestActivity: suggestActivity.activities,
     };
 
+    // Cache the result for 1 hour
+    await setCache(cacheKey, resulttData, 3600);
+
     return resulttData;
   },
 
   async updateTripTimeLine(reqUser, updateData) {
-    // Kiểm tra template có tồn tại không
-    const template = await TemplateModel.findById(updateData.templateId);
-
-    // 2. Kiểm tra và validate dữ liệu
-    await validateUpdateTripTimeLine(updateData);
-
-    if (updateData.to.lat && updateData.from.lat) {
-      template.distanceKm = handleCaculatorDistance(
-        updateData.from,
-        updateData.to
-      );
-      template.from = updateData.from;
-      template.to = updateData.to;
-    }
-
-    if (updateData.startDate && updateData.endDate) {
-      await handleCheckStartAndEndDate(
-        updateData.startDate,
-        updateData.endDate
-      );
-      template.startDate = updateData.startDate;
-      template.endDate = updateData.endDate;
-    }
-
-    await handleCheckExitBackground(updateData.background);
-    await handleCheckExitTripType(updateData.tripType);
-
-    const fieldsToUpdate = [
-      "tripType",
-      "title",
-      "location",
-      "background",
-      "budget",
-      "tripType",
-      "members",
-      "vihicle",
-      "healthNotes",
-      "description",
-      "completed",
-    ];
-
-    fieldsToUpdate.forEach((key) => {
-      if (updateData[key]) {
-        template[key] = updateData[key];
+    try {
+      // Kiểm tra template có tồn tại không
+      const template = await TemplateModel.findById(
+        updateData.templateId
+      ).populate("background tripType");
+      if (!template) {
+        throwError("TEM-012");
       }
-    });
-    await template.save();
-    const responseTemplate = await template.toObject();
+      // 2. Kiểm tra và validate dữ liệu
+      await updateTripTimeLineSchema.validate(updateData);
 
-    return { template: responseTemplate };
+      if (updateData?.to?.lat && updateData?.from?.lat) {
+        template.distanceKm = handleCaculatorDistance(
+          updateData.from,
+          updateData.to
+        );
+        template.from = updateData.from;
+        template.to = updateData.to;
+      }
+
+      if (updateData?.startDate && updateData?.endDate) {
+        await handleCheckStartAndEndDate(
+          updateData.startDate,
+          updateData.endDate
+        );
+        template.startDate = updateData.startDate;
+        template.endDate = updateData.endDate;
+      }
+
+      await handleCheckExitBackground(updateData.background);
+      await handleCheckExitTripType(updateData.tripType);
+
+      const fieldsToUpdate = [
+        "tripType",
+        "title",
+        "background",
+        "budget",
+        "members",
+        "vihicle",
+        "startDate",
+        "endDate",
+        "from",
+        "to",
+        "description",
+      ];
+
+      fieldsToUpdate.forEach((key) => {
+        if (updateData[key]) {
+          template[key] = updateData[key];
+        }
+      });
+
+      await template.save();
+      const responseTemplate = await template.toObject();
+
+      // Cập nhật cache
+      const cacheKey = `trip_timeline:${updateData.templateId}`;
+      const cachedData = await getCache(cacheKey);
+      if (cachedData) {
+        cachedData.infor = {
+          ...cachedData.infor,
+          ...responseTemplate,
+          owner: template.owner.email,
+          tripType: template.tripType.name,
+          background: template.background?.background?.url || null,
+        };
+        await setCache(cacheKey, cachedData, 3600);
+      }
+
+      return cachedData;
+    } catch (error) {
+      throwError(error.message);
+    }
   },
 
   async updateListMembers(data) {
@@ -167,7 +205,16 @@ const MyTemplateService = {
 
       template.listMembers = [...template.listMembers, ...newListMembers];
       await template.save();
-      return template.toObject();
+
+      // Cập nhật cache
+      const cacheKey = `trip_timeline:${data.templateId}`;
+      const cachedData = await getCache(cacheKey);
+      if (cachedData) {
+        cachedData.infor.listMembers = template.listMembers;
+        await setCache(cacheKey, cachedData, 3600);
+      }
+
+      return cachedData.infor.listMembers;
     } catch (error) {
       throwError(error);
     }
@@ -189,7 +236,21 @@ const MyTemplateService = {
       }
       member.role = data.role;
       await template.save();
-      return template.toObject();
+
+      // Cập nhật cache
+      const cacheKey = `trip_timeline:${data.templateId}`;
+      const cachedData = await getCache(cacheKey);
+      if (cachedData) {
+        const memberIndex = cachedData.infor.listMembers.findIndex(
+          (mem) => mem._id.toString() === data._id
+        );
+        if (memberIndex !== -1) {
+          cachedData.infor.listMembers[memberIndex].role = data.role;
+          await setCache(cacheKey, cachedData, 3600);
+        }
+      }
+
+      return cachedData.infor.listMembers;
     } catch (error) {
       throwError(error);
     }
@@ -210,7 +271,6 @@ const MyTemplateService = {
         const shouldDelete = data.listMembers.includes(member._id.toString());
 
         // Nếu là chính mình thì không cho xoá
-
         if (shouldDelete && member.email === email) {
           throwError("TEM-030"); // Không thể tự xoá mình
         }
@@ -220,7 +280,16 @@ const MyTemplateService = {
       });
 
       await template.save();
-      return template.toObject();
+
+      // Cập nhật cache
+      const cacheKey = `trip_timeline:${data.templateId}`;
+      const cachedData = await getCache(cacheKey);
+      if (cachedData) {
+        cachedData.infor.listMembers = template.listMembers;
+        await setCache(cacheKey, cachedData, 3600);
+      }
+
+      return cachedData.infor.listMembers;
     } catch (error) {
       throwError(error.message);
     }
@@ -228,8 +297,7 @@ const MyTemplateService = {
 
   async createActivity(data) {
     try {
-      const { title, time, templateId, icon, location, cost, type, date } =
-        data;
+      const { note, time, templateId, location, cost, type, date } = data;
       await createTripActivitySchema.validate(data);
       // Find the template
       const template = await TemplateModel.findById(templateId)
@@ -273,25 +341,48 @@ const MyTemplateService = {
       );
       maxOrder++;
 
-      tripActivity.activities.push({
-        title,
+      const newActivity = {
+        note,
         time,
         location,
         cost,
         type,
-        icon,
         order: maxOrder,
-      });
+      };
 
-      const newActivity = tripActivity;
-      // Save the activity
-
-      await newActivity.save();
+      tripActivity.activities.push(newActivity);
+      await tripActivity.save();
 
       const result = tripActivity.toObject();
       result.activities = handelSortedActivities(result.activities);
 
-      return result;
+      // Cập nhật cache
+      const cacheKey = `trip_timeline:${templateId}`;
+      const cachedData = await getCache(cacheKey);
+      if (cachedData) {
+        // Tìm hoặc tạo mới ngày trong tripActivities
+        let dayActivity = cachedData.tripActivities.find(
+          (trip) => trip.date === date
+        );
+
+        if (!dayActivity) {
+          dayActivity = {
+            _id: tripActivity._id,
+            template: templateId,
+            date,
+            activities: [],
+          };
+          cachedData.tripActivities.push(dayActivity);
+        }
+
+        // Thêm activity mới vào ngày
+        dayActivity.activities.push(newActivity);
+        dayActivity.activities = handelSortedActivities(dayActivity.activities);
+
+        await setCache(cacheKey, cachedData, 3600);
+      }
+
+      return cachedData.tripActivities;
     } catch (error) {
       throwError(error.message);
     }
@@ -317,15 +408,7 @@ const MyTemplateService = {
         throwError("TEM-031");
       }
 
-      const fields = [
-        "title",
-        "time",
-        "location",
-        "cost",
-        "type",
-        "icon",
-        "completed",
-      ];
+      const fields = ["note", "time", "location", "cost", "type", "completed"];
 
       fields.forEach((field) => {
         if (data[field] !== undefined) {
@@ -337,7 +420,31 @@ const MyTemplateService = {
       const result = tripActivity.toObject();
       result.activities = handelSortedActivities(result.activities);
 
-      return result;
+      // Cập nhật cache
+      const cacheKey = `trip_timeline:${tripActivity.template}`;
+      const cachedData = await getCache(cacheKey);
+      if (cachedData) {
+        // Tìm activity trong cache và cập nhật
+        for (const dayActivity of cachedData.tripActivities) {
+          const activityIndex = dayActivity.activities.findIndex(
+            (activity) => activity._id.toString() === activityId
+          );
+          if (activityIndex !== -1) {
+            fields.forEach((field) => {
+              if (data[field] !== undefined) {
+                dayActivity.activities[activityIndex][field] = data[field];
+              }
+            });
+            dayActivity.activities = handelSortedActivities(
+              dayActivity.activities
+            );
+            break;
+          }
+        }
+        await setCache(cacheKey, cachedData, 3600);
+      }
+
+      return cachedData.tripActivities;
     } catch (error) {
       throwError(error);
     }
@@ -366,7 +473,28 @@ const MyTemplateService = {
       const result = tripActivity.toObject();
       result.activities = handelSortedActivities(result.activities);
 
-      return result;
+      // Cập nhật cache
+      const cacheKey = `trip_timeline:${tripActivity.template}`;
+      const cachedData = await getCache(cacheKey);
+      if (cachedData) {
+        // Cập nhật order trong cache
+        for (const dayActivity of cachedData.tripActivities) {
+          activities.forEach(({ _id, order }) => {
+            const activity = dayActivity.activities.find(
+              (act) => act._id.toString() === _id
+            );
+            if (activity) {
+              activity.order = order;
+            }
+          });
+          dayActivity.activities = handelSortedActivities(
+            dayActivity.activities
+          );
+        }
+        await setCache(cacheKey, cachedData, 3600);
+      }
+
+      return cachedData.tripActivities;
     } catch (error) {
       throwError(error.message);
     }
@@ -399,7 +527,27 @@ const MyTemplateService = {
       const result = tripActivity.toObject();
       result.activities = handelSortedActivities(result.activities);
 
-      return result;
+      // Cập nhật cache
+      const cacheKey = `trip_timeline:${tripActivity.template}`;
+      const cachedData = await getCache(cacheKey);
+      if (cachedData) {
+        // Xóa activity trong cache
+        for (const dayActivity of cachedData.tripActivities) {
+          const activityIndex = dayActivity.activities.findIndex(
+            (activity) => activity._id.toString() === activityId
+          );
+          if (activityIndex !== -1) {
+            dayActivity.activities.splice(activityIndex, 1);
+            dayActivity.activities = handelSortedActivities(
+              dayActivity.activities
+            );
+            break;
+          }
+        }
+        await setCache(cacheKey, cachedData, 3600);
+      }
+
+      return cachedData.tripActivities;
     } catch (error) {
       throwError(error);
     }
@@ -452,7 +600,7 @@ const MyTemplateService = {
       await template.save();
     }
 
-    const cacheKey = `ai_suggestions:template:${templateId}`;
+    const cacheKey = `ai_suggestions_timeLine:template:${templateId}`;
 
     // Thử lấy từ cache trước khi call AI (để có thể fallback sau này)
     const cachedData = await getCache(cacheKey);
@@ -536,7 +684,7 @@ const MyTemplateService = {
       template.lastCallSuggest = now;
       await template.save();
 
-      await setCache(cacheKey, result, 86400);
+      await setCache(cacheKey, result);
       return result;
     } catch (error) {
       if (cachedData) {
@@ -545,189 +693,6 @@ const MyTemplateService = {
       result = {
         activities: [],
       };
-    }
-  },
-
-  // ------------------------ Trip Asstitant --------------------- //
-
-  async getTripAsstitant(reqUser, templateId) {
-    const { email, userId, fullName } = reqUser;
-
-    const template = await TemplateModel.findById(templateId)
-      .populate("pack tripType")
-      .select(
-        "pack healthNotes listMembers to startDate tripType endDate budget members vihicle hasAppliedAISuggestions"
-      );
-
-    if (!template) {
-      throwError("TEM-012");
-    }
-
-    const member = template.listMembers.find(
-      (member) => member.email && member.email === email
-    );
-
-    if (!member) {
-      throwError("TEM-029", 403);
-    }
-
-    // Cập nhật thông tin user nếu chưa có
-    if (!member.user) {
-      member.user = userId;
-      member.name = fullName;
-      member.isRegistered = true;
-      await template.save(); // Save luôn thay vì gọi lại findById
-    }
-    return {
-      _id: template._id,
-      packs: template.pack.categories,
-      healthNotes: template.healthNotes,
-    };
-  },
-
-  async getSuggestPacksFromAI(templateId) {
-    const template = await TemplateModel.findById(templateId).populate(
-      "pack tripType"
-    );
-
-    if (!template) {
-      throwError("TEM-012");
-    }
-
-    try {
-      const { to, startDate, endDate, budget, members, vihicle } = template;
-      const tripType = template.tripType.name;
-
-      const prompt = `
-      Toi se di ${
-        to.destination
-      } tu ${startDate} den ${endDate}, ngan sach ${budget}đ cho ${members} nguoi.  
-      Loai chuyen: ${tripType}, phuong tien: ${vihicle}.  
-      Voi Packs ${JSON.stringify(
-        template.pack.categories
-      )} do nhu nay thi ban danh dau cho toi do nao can thiet nhe(isCheck=true)
-      LUU Y QUAN TRONG
-       - Tra ve voi toan bo danh sach ban dau
-       - Giu nguyen cau truc va dung dang JSON
-       - Chi tra ve JSON, khong co text nao khac
-      `.trim();
-
-      const aiResponse = await callAI(prompt);
-
-      // Loại bỏ tất cả các ký tự không phải JSON
-      const cleaned = aiResponse
-        .replace(/```json|```/g, "") // Loại bỏ markdown
-        .replace(/[\n\r]/g, "") // Loại bỏ newline
-        .trim();
-
-      try {
-        // Tìm JSON trong chuỗi
-        const jsonMatch = cleaned.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-        if (!jsonMatch) {
-          return template.pack.categories;
-        }
-
-        const result = JSON.parse(jsonMatch[0]);
-
-        // Kiểm tra cấu trúc kết quả
-        if (!Array.isArray(result)) {
-          console.log("Kết quả không phải là mảng");
-          return template.pack.categories;
-        }
-
-        // Only update the pack with AI-suggested items if it hasn't been done before
-        if (!template.hasAppliedAISuggestions) {
-          // Lấy instance của PackModel
-          const pack = await PackModel.findById(template.pack._id);
-          if (!pack) {
-            throwError("TEM-013");
-          }
-
-          // Cập nhật categories
-          pack.categories = result;
-          await pack.save();
-
-          // Cập nhật trạng thái đã apply AI suggestions
-          template.hasAppliedAISuggestions = true;
-          await template.save();
-
-          return result;
-        } else {
-          return template.pack.categories;
-        }
-      } catch (err) {
-        return template.pack.categories;
-      }
-    } catch (error) {
-      return template.pack.categories;
-    }
-  },
-
-  async updateTripAssistant(data) {
-    try {
-      await updateTripAssistantSchema.validate(data);
-
-      const template = await TemplateModel.findById(data.templateId);
-      if (!template) {
-        throwError("TEM-012");
-      }
-
-      // Get the pack associated with the template
-      const pack = await PackModel.findById(template.pack);
-      if (!pack) {
-        throwError("TEM-013");
-      }
-
-      // Create a map of existing categories by ID for quick lookup
-      const existingCategoriesMap = new Map(
-        pack.categories.map((cat) => [cat._id.toString(), cat])
-      );
-
-      if (data.categories) {
-        // Process each category from the input data
-        data.categories.forEach((newCategory) => {
-          const existingCategory = existingCategoriesMap.get(newCategory._id);
-
-          if (existingCategory) {
-            // Only update category and isDefault if it's not a default category
-            if (!existingCategory.isDefault) {
-              existingCategory.category = newCategory.category;
-            }
-
-            // Create a map of existing items by ID for quick lookup
-            const existingItemsMap = new Map(
-              existingCategory.items.map((item) => [item._id.toString(), item])
-            );
-
-            // Process each item from the input data
-            newCategory.items.forEach((newItem) => {
-              const existingItem = existingItemsMap.get(newItem._id);
-
-              if (existingItem) {
-                // Update item properties
-                existingItem.name = newItem.name;
-                existingItem.isCheck = newItem.isCheck;
-              }
-            });
-          }
-        });
-      }
-
-      // Update health notes if provided
-      if (data.healthNotes !== undefined) {
-        template.healthNotes = data.healthNotes;
-      }
-
-      await pack.save();
-      await template.save();
-
-      return {
-        _id: template._id,
-        packs: pack.categories,
-        healthNotes: template.healthNotes,
-      };
-    } catch (error) {
-      throwError(error.message);
     }
   },
 };
@@ -774,4 +739,4 @@ const handelSortedActivities = (activities) => {
   });
 };
 
-module.exports = MyTemplateService;
+module.exports = TripTimeLineService;

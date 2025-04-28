@@ -16,9 +16,8 @@ const objectIdSchema = yup
   });
 
 const baseSchema = {
-  title: yup.string().typeError("AUTH-030"),
+  note: yup.string().typeError("AUTH-030"),
   time: yup.string().typeError("AUTH-030").matches(timeRegex, "AUTH-026"),
-  icon: yup.string().typeError("AUTH-030").nullable(),
   cost: yup.number().typeError("AUTH-030").positive("AUTH-030").nullable(),
   type: yup.string().typeError("AUTH-030"),
   location: yup
@@ -33,7 +32,6 @@ const baseSchema = {
 
 const createTripActivitySchema = yup.object().shape({
   ...baseSchema,
-  title: baseSchema.title.required("AUTH-026"),
   time: baseSchema.time.required("AUTH-026"),
   templateId: objectIdSchema,
   date: yup

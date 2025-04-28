@@ -87,4 +87,10 @@ router.post(
   myTemplateController.updateTripAssistant
 );
 
+router.post(
+  "/getSuggestChecklist",
+  authMiddleware(),
+  myTemplateController.getSuggestChecklist
+);
+
 module.exports = router;

@@ -41,6 +41,7 @@ const roleSchema = yup
 
 const listMembersSchema = yup
   .array()
+  .nullable()
   .of(
     yup.object().shape({
       email: yup
@@ -100,16 +101,20 @@ const baseTripSchema = {
 
 const createTemplteSchema = yup.object().shape({
   ...baseTripSchema,
-  from: yup.object({
-    destination: yup.string().typeError("AUTH-030").required("AUTH-026"),
-    lat: yup.number().typeError("AUTH-030").required("AUTH-026"),
-    lon: yup.number().typeError("AUTH-030").required("AUTH-026"),
-  }),
-  to: yup.object({
-    destination: yup.string().typeError("AUTH-030").required("AUTH-026"),
-    lat: yup.number().typeError("AUTH-030").required("AUTH-026"),
-    lon: yup.number().typeError("AUTH-030").required("AUTH-026"),
-  }),
+  from: yup
+    .object({
+      destination: yup.string().typeError("AUTH-030").required("AUTH-026"),
+      lat: yup.number().typeError("AUTH-030").required("AUTH-026"),
+      lon: yup.number().typeError("AUTH-030").required("AUTH-026"),
+    })
+    .required("AUTH-026"),
+  to: yup
+    .object({
+      destination: yup.string().typeError("AUTH-030").required("AUTH-026"),
+      lat: yup.number().typeError("AUTH-030").required("AUTH-026"),
+      lon: yup.number().typeError("AUTH-030").required("AUTH-026"),
+    })
+    .required("AUTH-026"),
   startDate: yup
     .string()
     .typeError("AUTH-030")
@@ -132,6 +137,23 @@ const createTemplteSchema = yup.object().shape({
 const updateTripTimeLineSchema = yup.object().shape({
   ...baseTripSchema,
   templateId: objectIdSchema,
+  title: yup.string().typeError("AUTH-030").max(100).default("").nullable(),
+  from: yup
+    .object({
+      destination: yup.string().typeError("AUTH-030").nullable(),
+      lat: yup.number().typeError("AUTH-030").nullable(),
+      lon: yup.number().typeError("AUTH-030").nullable(),
+    })
+    .nullable()
+    .default({}),
+  to: yup
+    .object({
+      destination: yup.string().typeError("AUTH-030").nullable(),
+      lat: yup.number().typeError("AUTH-030").nullable(),
+      lon: yup.number().typeError("AUTH-030").nullable(),
+    })
+    .nullable()
+    .default({}),
 });
 
 const updateListMembersSchema = yup.object().shape({

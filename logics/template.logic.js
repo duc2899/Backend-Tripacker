@@ -115,6 +115,7 @@ const handleUpdateListMembers = async (
  * @returns {void}
  */
 const handleCheckExitBackground = async (background) => {
+  if (!background) return;
   const backgroundTemplate = await BackgroundTemplateModel.exists({
     _id: background,
   });
@@ -128,7 +129,7 @@ const handleCheckExitBackground = async (background) => {
  * @returns {void}
  */
 const handleCheckExitTripType = async (tripType) => {
-  // Kiểm tra tripType có tồn tại trong model không
+  if (!tripType) return;
   const tripTypeTemplate = await TripTypeModel.exists({ _id: tripType });
   if (!tripTypeTemplate) {
     throwError("TEM-026");
