@@ -173,6 +173,20 @@ const handleCheckStartAndEndDate = (startDate, endDate) => {
   }
 };
 
+const handleResetCountCallSuggest = async (template) => {
+  // Kiểm tra qua ngày mới để reset count
+  const now = new Date();
+  const lastCallDate = template.lastCallSuggest
+    ? new Date(template.lastCallSuggest).toDateString()
+    : null;
+
+  if (lastCallDate !== now.toDateString()) {
+    template.countCallSuggest = 0;
+    template.lastCallSuggest = now;
+    await template.save();
+  }
+};
+
 module.exports = {
   handleUpdateListMembers,
   handleCheckExitBackground,
@@ -180,4 +194,5 @@ module.exports = {
   handleCaculatorDistance,
   handleCheckStartAndEndDate,
   handleCreateListMembers,
+  handleResetCountCallSuggest,
 };

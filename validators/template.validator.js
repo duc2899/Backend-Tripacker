@@ -6,8 +6,8 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const objectIdSchema = yup
   .string()
-  .required("AUTH-026")
-  .test("is-object-id", "AUTH-030", (value) => {
+  .required("COMMON-006")
+  .test("is-object-id", "COMMON-007", (value) => {
     if (!value) return false;
     // Kiểm tra độ dài 24 và chỉ chứa ký tự hex
     return (
@@ -21,7 +21,7 @@ const locationSchema = yup
     lat: yup.number().nullable(),
     lon: yup.number().nullable(),
   })
-  .test("location-fields", "AUTH-026", function (value) {
+  .test("location-fields", "COMMON-006", function (value) {
     if (!value) return true;
     const { destination, lat, lon } = value;
     const isAnyFieldFilled = destination || lat || lon;
@@ -35,9 +35,9 @@ const locationSchema = yup
 
 const roleSchema = yup
   .string()
-  .typeError("AUTH-030")
-  .oneOf(["edit", "view"], "AUTH-030")
-  .required("AUTH-026");
+  .typeError("COMMON-007")
+  .oneOf(["edit", "view"], "COMMON-007")
+  .required("COMMON-006");
 
 const listMembersSchema = yup
   .array()
@@ -46,14 +46,14 @@ const listMembersSchema = yup
     yup.object().shape({
       email: yup
         .string()
-        .typeError("AUTH-030")
+        .typeError("COMMON-007")
         .nullable()
         .notRequired()
         .test("is-valid-email-or-empty", "TEM-024", function (value) {
           if (!value || value.trim() === "") return true;
           return emailRegex.test(value);
         }),
-      name: yup.string().typeError("AUTH-030").required("AUTH-026"),
+      name: yup.string().typeError("COMMON-007").required("COMMON-006"),
       role: roleSchema,
     })
   )
@@ -68,32 +68,36 @@ const listMembersSchema = yup
 const baseTripSchema = {
   from: locationSchema,
   to: locationSchema,
-  title: yup.string().typeError("AUTH-030").max(100).default("").nullable(),
+  title: yup.string().typeError("COMMON-007").max(100).default("").nullable(),
   startDate: yup
     .string()
-    .typeError("AUTH-030")
-    .matches(dateRegex, "AUTH-026")
+    .typeError("COMMON-007")
+    .matches(dateRegex, "COMMON-006")
     .nullable(),
   endDate: yup
     .string()
-    .typeError("AUTH-030")
-    .matches(dateRegex, "AUTH-026")
+    .typeError("COMMON-007")
+    .matches(dateRegex, "COMMON-006")
     .nullable(),
-  budget: yup.number().typeError("AUTH-030").positive("AUTH-030").nullable(),
-  tripType: yup.string().typeError("AUTH-030").nullable(),
-  vihicle: yup.string().typeError("AUTH-030").max(50).default("").nullable(),
-  members: yup.number().typeError("AUTH-030").min(1, "TEM-017").nullable(),
+  budget: yup
+    .number()
+    .typeError("COMMON-007")
+    .positive("COMMON-007")
+    .nullable(),
+  tripType: yup.string().typeError("COMMON-007").nullable(),
+  vihicle: yup.string().typeError("COMMON-007").max(50).default("").nullable(),
+  members: yup.number().typeError("COMMON-007").min(1, "TEM-017").nullable(),
   listMembers: listMembersSchema,
-  background: yup.string().typeError("AUTH-030").nullable(),
+  background: yup.string().typeError("COMMON-007").nullable(),
   healthNotes: yup
     .string()
-    .typeError("AUTH-030")
+    .typeError("COMMON-007")
     .max(100)
     .default("")
     .nullable(),
   description: yup
     .string()
-    .typeError("AUTH-030")
+    .typeError("COMMON-007")
     .max(200)
     .default("")
     .nullable(),
@@ -103,54 +107,54 @@ const createTemplteSchema = yup.object().shape({
   ...baseTripSchema,
   from: yup
     .object({
-      destination: yup.string().typeError("AUTH-030").required("AUTH-026"),
-      lat: yup.number().typeError("AUTH-030").required("AUTH-026"),
-      lon: yup.number().typeError("AUTH-030").required("AUTH-026"),
+      destination: yup.string().typeError("COMMON-007").required("COMMON-006"),
+      lat: yup.number().typeError("COMMON-007").required("COMMON-006"),
+      lon: yup.number().typeError("COMMON-007").required("COMMON-006"),
     })
-    .required("AUTH-026"),
+    .required("COMMON-006"),
   to: yup
     .object({
-      destination: yup.string().typeError("AUTH-030").required("AUTH-026"),
-      lat: yup.number().typeError("AUTH-030").required("AUTH-026"),
-      lon: yup.number().typeError("AUTH-030").required("AUTH-026"),
+      destination: yup.string().typeError("COMMON-007").required("COMMON-006"),
+      lat: yup.number().typeError("COMMON-007").required("COMMON-006"),
+      lon: yup.number().typeError("COMMON-007").required("COMMON-006"),
     })
-    .required("AUTH-026"),
+    .required("COMMON-006"),
   startDate: yup
     .string()
-    .typeError("AUTH-030")
-    .matches(dateRegex, "AUTH-026")
-    .required("AUTH-026"),
+    .typeError("COMMON-007")
+    .matches(dateRegex, "COMMON-006")
+    .required("COMMON-006"),
   endDate: yup
     .string()
-    .typeError("AUTH-030")
-    .matches(dateRegex, "AUTH-026")
-    .required("AUTH-026"),
+    .typeError("COMMON-007")
+    .matches(dateRegex, "COMMON-006")
+    .required("COMMON-006"),
   budget: yup
     .number()
-    .typeError("AUTH-030")
-    .positive("AUTH-030")
-    .required("AUTH-026"),
-  tripType: yup.string().typeError("AUTH-030").required("TEM-003"),
-  background: yup.string().typeError("AUTH-030").required("TEM-004"),
+    .typeError("COMMON-007")
+    .positive("COMMON-007")
+    .required("COMMON-006"),
+  tripType: yup.string().typeError("COMMON-007").required("TEM-003"),
+  background: yup.string().typeError("COMMON-007").required("TEM-004"),
 });
 
 const updateTripTimeLineSchema = yup.object().shape({
   ...baseTripSchema,
   templateId: objectIdSchema,
-  title: yup.string().typeError("AUTH-030").max(100).default("").nullable(),
+  title: yup.string().typeError("COMMON-007").max(100).default("").nullable(),
   from: yup
     .object({
-      destination: yup.string().typeError("AUTH-030").nullable(),
-      lat: yup.number().typeError("AUTH-030").nullable(),
-      lon: yup.number().typeError("AUTH-030").nullable(),
+      destination: yup.string().typeError("COMMON-007").nullable(),
+      lat: yup.number().typeError("COMMON-007").nullable(),
+      lon: yup.number().typeError("COMMON-007").nullable(),
     })
     .nullable()
     .default({}),
   to: yup
     .object({
-      destination: yup.string().typeError("AUTH-030").nullable(),
-      lat: yup.number().typeError("AUTH-030").nullable(),
-      lon: yup.number().typeError("AUTH-030").nullable(),
+      destination: yup.string().typeError("COMMON-007").nullable(),
+      lat: yup.number().typeError("COMMON-007").nullable(),
+      lon: yup.number().typeError("COMMON-007").nullable(),
     })
     .nullable()
     .default({}),
@@ -163,18 +167,18 @@ const updateListMembersSchema = yup.object().shape({
       yup.object().shape({
         email: yup
           .string()
-          .typeError("AUTH-030")
+          .typeError("COMMON-007")
           .nullable()
           .notRequired()
           .test("is-valid-email-or-empty", "TEM-024", function (value) {
             if (!value || value.trim() === "") return true;
             return emailRegex.test(value);
           }),
-        name: yup.string().typeError("AUTH-030").required("AUTH-026"),
+        name: yup.string().typeError("COMMON-007").required("COMMON-006"),
         role: roleSchema,
       })
     )
-    .min(1, "AUTH-030")
+    .min(1, "COMMON-007")
     .test("unique-emails", "TEM-023", (list) => {
       if (!list) return true;
       const emails = list
@@ -198,14 +202,19 @@ const deleteMembersSchema = yup.object().shape({
       objectIdSchema // ⬅️ Không đúng ObjectId thì báo lỗi
     )
     .required("TEM-026")
-    .min(1, "AUTH-030"), // Không cho rỗng
+    .min(1, "COMMON-007"), // Không cho rỗng
 
   templateId: objectIdSchema,
 });
 
 const getSuggestAISchema = yup.object().shape({
-  forceUpdate: yup.string().typeError("AUTH-030").nullable(),
+  forceUpdate: yup.string().typeError("COMMON-007").nullable(),
   templateId: objectIdSchema,
+});
+
+const getSuggestPacksFromAISchema = yup.object().shape({
+  templateId: objectIdSchema,
+  forceUpdate: yup.string().typeError("COMMON-007").nullable(),
 });
 
 const updateTripAssistantSchema = yup.object().shape({
@@ -214,21 +223,24 @@ const updateTripAssistantSchema = yup.object().shape({
     .of(
       yup.object().shape({
         _id: objectIdSchema,
-        category: yup.string().typeError("AUTH-030").nullable(),
+        category: yup.string().typeError("COMMON-007").nullable(),
         items: yup
           .array()
           .of(
             yup.object().shape({
               _id: objectIdSchema,
-              name: yup.string().typeError("AUTH-030").required("AUTH-026"),
-              isCheck: yup.boolean().typeError("AUTH-030").required("AUTH-026"),
+              name: yup.string().typeError("COMMON-007").required("COMMON-006"),
+              isCheck: yup
+                .boolean()
+                .typeError("COMMON-007")
+                .required("COMMON-006"),
             })
           )
           .nullable(),
       })
     )
     .nullable(),
-  healthNotes: yup.string().typeError("AUTH-030").nullable(),
+  healthNotes: yup.string().typeError("COMMON-007").nullable(),
   templateId: objectIdSchema,
 });
 
@@ -242,5 +254,6 @@ module.exports = {
   deleteMembersSchema,
   middleCheckPermissionSchema,
   getSuggestAISchema,
+  getSuggestPacksFromAISchema,
   updateTripAssistantSchema,
 };

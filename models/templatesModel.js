@@ -93,7 +93,6 @@ const templatesSchema = new mongoose.Schema(
     },
     countCallSuggest: { type: Number, default: 0 },
     lastCallSuggest: { type: Date, default: null },
-    hasAppliedAISuggestions: { type: Boolean, default: false }, // New field to track AI suggestions
   },
   { timestamps: true }
 );

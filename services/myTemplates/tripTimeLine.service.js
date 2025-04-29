@@ -25,6 +25,7 @@ const {
   handleCheckExitTripType,
   handleCheckStartAndEndDate,
   handleUpdateListMembers,
+  handleResetCountCallSuggest,
 } = require("../../logics/template.logic");
 
 const { getCache, setCache } = require("../../utils/redisHelper");
@@ -38,7 +39,7 @@ const TripTimeLineService = {
     // Try to get from cache first
     const cacheKey = `trip_timeline:${templateId}`;
     const cachedData = await getCache(cacheKey);
-    if (cachedData) {
+    if (cachedData?.infor) {
       // Kiểm tra xem user có trong listMembers không
       const member = cachedData.infor.listMembers.find(
         (member) => member.email && member.email === email
@@ -91,7 +92,7 @@ const TripTimeLineService = {
       }));
     };
 
-    const suggestActivity = await this.getSuggestActivityFromAI(reqUser, {
+    const suggestActivity = await this.getSuggestActivityFromAI({
       templateId: templateId,
       forceUpdate: false,
     });
@@ -311,7 +312,7 @@ const TripTimeLineService = {
 
       // Check if the activity date is within the template's start and end dates
       if (activityDate < startDate || activityDate > endDate) {
-        throwError("AUTH-030");
+        throwError("COMMON-007");
       }
 
       // Create a new trip activity
@@ -573,49 +574,39 @@ const TripTimeLineService = {
     }
   },
 
-  async getSuggestActivityFromAI(reqUser, data) {
-    const { userId } = reqUser;
+  async getSuggestActivityFromAI(data, firstCall = false) {
     const { templateId, forceUpdate } = data;
 
-    await getSuggestAISchema.validate(data);
-
-    const template = await TemplateModel.findOne({
-      _id: templateId,
-      owner: userId,
-    }).populate("tripType");
-
-    if (!template) {
-      throwError("TEM-015");
-    }
-
-    // Kiểm tra qua ngày mới để reset count
-    const now = new Date();
-    const lastCallDate = template.lastCallSuggest
-      ? new Date(template.lastCallSuggest).toDateString()
-      : null;
-
-    if (lastCallDate !== now.toDateString()) {
-      template.countCallSuggest = 0;
-      template.lastCallSuggest = now;
-      await template.save();
-    }
-
-    const cacheKey = `ai_suggestions_timeLine:template:${templateId}`;
-
-    // Thử lấy từ cache trước khi call AI (để có thể fallback sau này)
-    const cachedData = await getCache(cacheKey);
-
-    if (
-      !forceUpdate ||
-      forceUpdate !== "true" ||
-      template.countCallSuggest > MAX_CALL_SUGGEST
-    ) {
-      if (cachedData) {
-        return cachedData;
-      }
+    // Validate data first
+    try {
+      await getSuggestAISchema.validate(data);
+    } catch (error) {
+      throwError(error.message, 400);
     }
 
     try {
+      const template = await TemplateModel.findById(templateId).populate(
+        "tripType"
+      );
+
+      if (!template) {
+        throwError("TEM-015");
+      }
+
+      await handleResetCountCallSuggest(template);
+
+      const cacheKey = `trip_timeline:${templateId}`;
+      const cachedData = await getCache(cacheKey);
+
+      // Early return if we have cached data and no force update
+      if (
+        cachedData &&
+        !forceUpdate &&
+        template.countCallSuggest <= MAX_CALL_SUGGEST
+      ) {
+        return cachedData.suggestActivity || { activities: [] };
+      }
+
       const { to, startDate, endDate, budget, members, vihicle } = template;
       const tripType = template.tripType.name;
 
@@ -644,35 +635,19 @@ const TripTimeLineService = {
           continue;
         }
       }
+
       if (!lastValidJSON) {
-        // Thử lấy từ cache nếu có
-        if (cachedData) {
-          return cachedData;
-        }
-        // Nếu không có cache, throw error
-        result = {
-          activities: [],
-        };
+        return cachedData?.suggestActivity || { activities: [] };
       }
 
+      // Process activities with images
       const activitiesWithImages = await Promise.all(
         lastValidJSON.activities.map(async (activity) => {
-          try {
-            const images = await searchImagesByLocation(activity.location.name);
-            return {
-              ...activity,
-              image: images[0] || null,
-            };
-          } catch (err) {
-            console.error(
-              `Lỗi khi tìm ảnh cho ${activity.location}:`,
-              err.message
-            );
-            return {
-              ...activity,
-              image: null,
-            };
-          }
+          const images = await searchImagesByLocation(activity.location.name);
+          return {
+            ...activity,
+            image: images[0] || null,
+          };
         })
       );
 
@@ -680,19 +655,27 @@ const TripTimeLineService = {
         activities: activitiesWithImages,
       };
 
-      template.countCallSuggest++;
-      template.lastCallSuggest = now;
-      await template.save();
+      // Only update count if not first call
+      if (!firstCall) {
+        template.countCallSuggest = (template.countCallSuggest || 0) + 1;
+        template.lastCallSuggest = new Date();
+        await template.save();
+      }
 
-      await setCache(cacheKey, result);
+      // Update cache
+      const updatedCache = {
+        ...cachedData,
+        suggestActivity: result,
+      };
+      await setCache(cacheKey, updatedCache);
+
       return result;
     } catch (error) {
-      if (cachedData) {
-        return cachedData;
-      }
-      result = {
-        activities: [],
-      };
+      // Handle other errors (database, AI, etc.)
+      console.error("Error in getSuggestActivityFromAI:", error);
+      const cacheKey = `trip_timeline:${templateId}`;
+      const cachedData = await getCache(cacheKey);
+      return cachedData?.suggestActivity || { activities: [] };
     }
   },
 };

@@ -75,7 +75,7 @@ const sanitizeAndValidate = (
   );
 
   if (missingFields.length > 0) {
-    throwError("AUTH-026");
+    throwError("COMMON-006");
   }
 
   for (const key in fieldTypes) {
@@ -87,7 +87,7 @@ const sanitizeAndValidate = (
       const actualType = Array.isArray(value) ? "array" : typeof value;
 
       if (actualType !== expectedType) {
-        throwError("AUTH-030");
+        throwError("COMMON-007");
       }
     }
   }

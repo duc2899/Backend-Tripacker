@@ -3,8 +3,8 @@ const yup = require("yup");
 
 const objectIdSchema = yup
   .string()
-  .required("AUTH-026")
-  .test("is-object-id", "AUTH-030", (value) => {
+  .required("COMMON-006")
+  .test("is-object-id", "COMMON-007", (value) => {
     if (!value) return false;
     // Kiểm tra độ dài 24 và chỉ chứa ký tự hex
     return (
@@ -15,29 +15,29 @@ const objectIdSchema = yup
 const updateUserSchema = yup.object().shape({
   fullName: yup
     .string()
-    .typeError("AUTH-030")
+    .typeError("COMMON-007")
     .max(30, "USER-014")
     .nullable()
     .trim(),
   about: yup
     .string()
-    .typeError("AUTH-030")
+    .typeError("COMMON-007")
     .max(140, "USER-014")
     .nullable()
     .trim(),
   socialNetwork: yup
     .array()
-    .typeError("AUTH-030")
+    .typeError("COMMON-007")
     .of(yup.string().url("USER-002"))
     .max(3, "USER-001")
     .nullable(),
   gender: yup
     .string()
-    .typeError("AUTH-030")
+    .typeError("COMMON-007")
     .oneOf(["male", "female", "other"], "USER-015")
-    .required("AUTH-026"),
-  birthDay: yup.string().typeError("AUTH-030").nullable().trim(),
-  phoneNumber: yup.string().typeError("AUTH-030").nullable().trim(),
+    .required("COMMON-006"),
+  birthDay: yup.string().typeError("COMMON-007").nullable().trim(),
+  phoneNumber: yup.string().typeError("COMMON-007").nullable().trim(),
 });
 
 const deleteTemplateSchema = yup.object().shape({

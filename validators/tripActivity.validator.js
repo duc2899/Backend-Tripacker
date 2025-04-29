@@ -6,8 +6,8 @@ const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
 
 const objectIdSchema = yup
   .string()
-  .required("AUTH-026")
-  .test("is-object-id", "AUTH-030", (value) => {
+  .required("COMMON-006")
+  .test("is-object-id", "COMMON-007", (value) => {
     if (!value) return false;
     // Kiểm tra độ dài 24 và chỉ chứa ký tự hex
     return (
@@ -16,29 +16,29 @@ const objectIdSchema = yup
   });
 
 const baseSchema = {
-  note: yup.string().typeError("AUTH-030"),
-  time: yup.string().typeError("AUTH-030").matches(timeRegex, "AUTH-026"),
-  cost: yup.number().typeError("AUTH-030").positive("AUTH-030").nullable(),
-  type: yup.string().typeError("AUTH-030"),
+  note: yup.string().typeError("COMMON-007"),
+  time: yup.string().typeError("COMMON-007").matches(timeRegex, "COMMON-006"),
+  cost: yup.number().typeError("COMMON-007").positive("COMMON-007").nullable(),
+  type: yup.string().typeError("COMMON-007"),
   location: yup
     .object({
-      destination: yup.string().typeError("AUTH-030").required("AUTH-026"),
-      lat: yup.number().typeError("AUTH-030").required("AUTH-026"),
-      lon: yup.number().typeError("AUTH-030").required("AUTH-026"),
+      destination: yup.string().typeError("COMMON-007").required("COMMON-006"),
+      lat: yup.number().typeError("COMMON-007").required("COMMON-006"),
+      lon: yup.number().typeError("COMMON-007").required("COMMON-006"),
     })
-    .typeError("AUTH-030")
-    .required("AUTH-026"),
+    .typeError("COMMON-007")
+    .required("COMMON-006"),
 };
 
 const createTripActivitySchema = yup.object().shape({
   ...baseSchema,
-  time: baseSchema.time.required("AUTH-026"),
+  time: baseSchema.time.required("COMMON-006"),
   templateId: objectIdSchema,
   date: yup
     .string()
-    .typeError("AUTH-030")
-    .matches(dateRegex, "AUTH-026")
-    .required("AUTH-026"),
+    .typeError("COMMON-007")
+    .matches(dateRegex, "COMMON-006")
+    .required("COMMON-006"),
 });
 
 const editTripActivitySchema = yup.object().shape({
@@ -46,20 +46,20 @@ const editTripActivitySchema = yup.object().shape({
   activityId: objectIdSchema,
   tripActivityId: objectIdSchema,
   templateId: objectIdSchema,
-  completed: yup.boolean().typeError("AUTH-030").nullable(),
+  completed: yup.boolean().typeError("COMMON-007").nullable(),
   location: yup
     .object({
-      destination: yup.string().typeError("AUTH-030").nullable(),
-      lat: yup.number().typeError("AUTH-030").nullable(),
-      lon: yup.number().typeError("AUTH-030").nullable(),
+      destination: yup.string().typeError("COMMON-007").nullable(),
+      lat: yup.number().typeError("COMMON-007").nullable(),
+      lon: yup.number().typeError("COMMON-007").nullable(),
     })
-    .typeError("AUTH-030")
+    .typeError("COMMON-007")
     .nullable(),
 });
 
 const deleteTripActivitySchema = yup.object().shape({
-  activityId: yup.string().typeError("AUTH-030").required("AUTH-026"),
-  tripActivityId: yup.string().typeError("AUTH-030").required("AUTH-026"),
+  activityId: yup.string().typeError("COMMON-007").required("COMMON-006"),
+  tripActivityId: yup.string().typeError("COMMON-007").required("COMMON-006"),
 });
 
 const reOrderTripActivitySchema = yup.object().shape({
@@ -69,11 +69,11 @@ const reOrderTripActivitySchema = yup.object().shape({
     .of(
       yup.object().shape({
         _id: objectIdSchema,
-        order: yup.number().required("AUTH-026").min(1),
+        order: yup.number().required("COMMON-006").min(1),
       })
     )
-    .required("AUTH-026")
-    .min(1, "AUTH-026"),
+    .required("COMMON-006")
+    .min(1, "COMMON-006"),
 });
 
 module.exports = {

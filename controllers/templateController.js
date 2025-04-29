@@ -6,14 +6,29 @@ exports.createTemplate = async (req, res, next) => {
   try {
     const result = await TemplateService.createTemplate(req.user, req.body);
 
-    await TripTimeLineService.getSuggestActivityFromAI(req.user, {
-      templateId: result._id,
-      forceUpdate: true,
-    });
+    await TripTimeLineService.getSuggestActivityFromAI(
+      {
+        templateId: result._id,
+        forceUpdate: true,
+      },
+      true
+    );
 
-    await TripAsstitantService.getSuggestPacksFromAI(result._id);
+    await TripAsstitantService.getSuggestPacksFromAI(
+      {
+        templateId: result._id,
+        forceUpdate: true,
+      },
+      true
+    );
 
-    await TripAsstitantService.getSuggestChecklist(result._id);
+    await TripAsstitantService.getSuggestChecklistFromAI(
+      {
+        templateId: result._id,
+        forceUpdate: true,
+      },
+      true
+    );
 
     return res.status(201).json({
       message: "COMMON-001",

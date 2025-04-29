@@ -187,7 +187,9 @@ exports.updateTripAssistant = async (req, res, next) => {
 
 exports.getSuggestChecklist = async (req, res, next) => {
   try {
-    const result = await TripAsstitantService.getSuggestChecklist(req.body);
+    const result = await TripAsstitantService.getSuggestChecklistFromAI(
+      req.query
+    );
     return res.status(200).json({
       message: "COMMON-002",
       data: result,
