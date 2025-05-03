@@ -26,6 +26,7 @@ const {
   handleCheckStartAndEndDate,
   handleUpdateListMembers,
   handleResetCountCallSuggest,
+  handleUpdateCountCallSuggest,
 } = require("../../logics/template.logic");
 
 const { getCache, setCache } = require("../../utils/redisHelper");
@@ -109,8 +110,7 @@ const TripTimeLineService = {
       suggestActivity: suggestActivity.activities,
     };
 
-    // Cache the result for 1 hour
-    await setCache(cacheKey, resulttData, 3600);
+    await setCache(cacheKey, resulttData);
 
     return resulttData;
   },
@@ -173,7 +173,7 @@ const TripTimeLineService = {
 
       // Cập nhật cache
       const cacheKey = `trip_timeline:${updateData.templateId}`;
-      const cachedData = await getCache(cacheKey);
+      let cachedData = await getCache(cacheKey);
       if (cachedData) {
         cachedData.infor = {
           ...cachedData.infor,
@@ -182,10 +182,22 @@ const TripTimeLineService = {
           tripType: template.tripType.name,
           background: template.background?.background?.url || null,
         };
-        await setCache(cacheKey, cachedData, 3600);
+        await setCache(cacheKey, cachedData);
+        return cachedData;
+      } else {
+        // Nếu chưa có cache, tạo mới cache từ dữ liệu vừa update
+        const newCache = {
+          infor: {
+            ...responseTemplate,
+            owner: template.owner.email,
+            tripType: template.tripType.name,
+            background: template.background?.background?.url || null,
+          },
+          // Có thể bổ sung các trường khác nếu cần
+        };
+        await setCache(cacheKey, newCache);
+        return newCache;
       }
-
-      return cachedData;
     } catch (error) {
       throwError(error.message);
     }
@@ -209,13 +221,14 @@ const TripTimeLineService = {
 
       // Cập nhật cache
       const cacheKey = `trip_timeline:${data.templateId}`;
+
       const cachedData = await getCache(cacheKey);
       if (cachedData) {
         cachedData.infor.listMembers = template.listMembers;
-        await setCache(cacheKey, cachedData, 3600);
+        await setCache(cacheKey, cachedData);
       }
 
-      return cachedData.infor.listMembers;
+      return template.listMembers;
     } catch (error) {
       throwError(error);
     }
@@ -251,7 +264,7 @@ const TripTimeLineService = {
         }
       }
 
-      return cachedData.infor.listMembers;
+      return template.listMembers;
     } catch (error) {
       throwError(error);
     }
@@ -290,7 +303,7 @@ const TripTimeLineService = {
         await setCache(cacheKey, cachedData, 3600);
       }
 
-      return cachedData.infor.listMembers;
+      return template.listMembers;
     } catch (error) {
       throwError(error.message);
     }
@@ -380,10 +393,10 @@ const TripTimeLineService = {
         dayActivity.activities.push(newActivity);
         dayActivity.activities = handelSortedActivities(dayActivity.activities);
 
-        await setCache(cacheKey, cachedData, 3600);
+        await setCache(cacheKey, cachedData);
       }
 
-      return cachedData.tripActivities;
+      return tripActivity.activities;
     } catch (error) {
       throwError(error.message);
     }
@@ -445,7 +458,7 @@ const TripTimeLineService = {
         await setCache(cacheKey, cachedData, 3600);
       }
 
-      return cachedData.tripActivities;
+      return tripActivity.activities;
     } catch (error) {
       throwError(error);
     }
@@ -495,7 +508,7 @@ const TripTimeLineService = {
         await setCache(cacheKey, cachedData, 3600);
       }
 
-      return cachedData.tripActivities;
+      return tripActivity.activities;
     } catch (error) {
       throwError(error.message);
     }
@@ -548,13 +561,13 @@ const TripTimeLineService = {
         await setCache(cacheKey, cachedData, 3600);
       }
 
-      return cachedData.tripActivities;
+      return tripActivity.activities;
     } catch (error) {
       throwError(error);
     }
   },
 
-  async middleCheckEditPermission(reqUser, templateId) {
+  async middleCheckPermission(reqUser, templateId, roles) {
     try {
       const { userId } = reqUser;
 
@@ -566,7 +579,8 @@ const TripTimeLineService = {
       if (!template) {
         throwError("TEM-012");
       }
-      if (!checkEditPermission(userId, template.listMembers, "edit")) {
+
+      if (!checkPermission(userId, template.listMembers, roles)) {
         throwError("TEM-029");
       }
     } catch (error) {
@@ -657,9 +671,7 @@ const TripTimeLineService = {
 
       // Only update count if not first call
       if (!firstCall) {
-        template.countCallSuggest = (template.countCallSuggest || 0) + 1;
-        template.lastCallSuggest = new Date();
-        await template.save();
+        await handleUpdateCountCallSuggest(template);
       }
 
       // Update cache
@@ -680,15 +692,15 @@ const TripTimeLineService = {
   },
 };
 
-const checkEditPermission = (userId, permissions, role) => {
-  const hasEditPermission = permissions.some(
+const checkPermission = (userId, permissions, roles) => {
+  const hasPermission = permissions.some(
     (permission) =>
       permission.user &&
       permission.user.toString() === userId &&
-      permission.role === role
+      roles.includes(permission.role)
   );
 
-  return hasEditPermission;
+  return hasPermission;
 };
 
 const searchImagesByLocation = async (location) => {

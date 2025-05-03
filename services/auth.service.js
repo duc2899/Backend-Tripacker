@@ -16,7 +16,7 @@ const {
   TIME_CHANGE_PASSWORD,
   TIME_VERIFY_ACCOUNT,
 } = require("../config/constant");
-const { checkBirthDay } = require("../utils/index.js");
+const { checkBirthDay, generateCustomAvatar } = require("../utils/index.js");
 const {
   registerSchema,
   verifyEmailSchema,
@@ -183,6 +183,12 @@ const AuthService = {
       user.verified = true;
       user.verifyToken = undefined;
       user.verifyTokenExpires = undefined;
+
+      user.avatar = {
+        url: generateCustomAvatar(user.email),
+        id: "",
+      };
+
       await user.save({
         validateModifiedOnly: true,
       });

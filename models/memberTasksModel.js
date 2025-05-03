@@ -13,24 +13,31 @@ const memberTaskSchema = new mongoose.Schema(
           type: String,
           required: true,
         },
-        completed: {
-          type: Boolean,
-          default: false,
+        status: {
+          type: String,
+          enum: ["Empty", "InProgress", "Done", "Deleted"],
+          default: "Empty",
+        },
+        position: {
+          type: Number,
+          default: 0,
         },
         priority: {
           type: String,
           enum: ["high", "medium", "low"],
           default: "high",
         },
-        isEdit: {
-          type: Boolean,
-          default: false,
+        lastEditedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Users",
+        },
+        createdBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Users",
         },
         assignee: {
           type: mongoose.Schema.Types.ObjectId,
-          required: true,
           ref: "Users",
-          required: true,
         },
         dueDate: {
           type: String,

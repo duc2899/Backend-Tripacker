@@ -95,8 +95,32 @@ const sanitizeAndValidate = (
   return sanitized;
 };
 
+/**
+ * @param {string} email
+ * @param {Object} options
+ */
+const generateCustomAvatar = (email, options = {}) => {
+  const {
+    size = 100,
+    backgroundColor = "f0f0f0", // Màu nền
+    radius = 50, // Bo góc (0-50)
+    flip = false, // Lật ngang
+  } = options;
+  return (
+    `https://api.dicebear.com/7.x/avataaars/svg?` +
+    new URLSearchParams({
+      seed: email,
+      size,
+      backgroundColor: [backgroundColor], // DiceBear yêu cầu dạng array
+      radius,
+      flip,
+    }).toString()
+  );
+};
+
 module.exports = {
   checkBirthDay,
   checkPhoneNumberVN,
   sanitizeAndValidate,
+  generateCustomAvatar,
 };

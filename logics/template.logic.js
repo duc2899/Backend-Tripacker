@@ -187,6 +187,17 @@ const handleResetCountCallSuggest = async (template) => {
   }
 };
 
+/**
+ * Cập nhật số lần gọi API suggest
+ * @param {Object} template - Template
+ * @returns {void}
+ */
+const handleUpdateCountCallSuggest = async (template) => {
+  template.countCallSuggest = (template.countCallSuggest || 0) + 1;
+  template.lastCallSuggest = new Date();
+  await template.save();
+};
+
 module.exports = {
   handleUpdateListMembers,
   handleCheckExitBackground,
@@ -195,4 +206,5 @@ module.exports = {
   handleCheckStartAndEndDate,
   handleCreateListMembers,
   handleResetCountCallSuggest,
+  handleUpdateCountCallSuggest,
 };

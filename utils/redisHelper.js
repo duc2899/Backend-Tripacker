@@ -4,7 +4,11 @@ const redis = require("../config/redis"); // Import file config Redis của bạ
 async function setCache(key, value, ttl = 3600) {
   try {
     if (ttl) {
-      await redis.setex(key, ttl, JSON.stringify(value));
+      await redis.setex(
+        key,
+        ttl + Math.floor(Math.random() * 300),
+        JSON.stringify(value)
+      );
     } else {
       await redis.setex(key, JSON.stringify(value));
     }

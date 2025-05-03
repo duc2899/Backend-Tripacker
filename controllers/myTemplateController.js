@@ -140,18 +140,25 @@ exports.reOrderActivity = async (req, res, next) => {
   }
 };
 
-exports.checkPermission = async (req, res, next) => {
-  try {
-    const { templateId } = {
-      ...req.params,
-      ...req.body,
-      ...req.query,
-    };
-    await TripTimeLineService.middleCheckEditPermission(req.user, templateId);
-    next();
-  } catch (error) {
-    next(error);
-  }
+exports.checkPermission = (roles = ["edit"]) => {
+  return async (req, res, next) => {
+    try {
+      const { templateId } = {
+        ...req.params,
+        ...req.body,
+        ...req.query,
+      };
+
+      await TripTimeLineService.middleCheckPermission(
+        req.user,
+        templateId,
+        roles // Sử dụng roles được truyền vào
+      );
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
 };
 
 //--------------------- Trip Asstitant -------------------------------

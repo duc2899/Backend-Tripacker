@@ -7,7 +7,10 @@ const {
   updateTripAssistantSchema,
   getSuggestPacksFromAISchema,
 } = require("../../validators/template.validator");
-const { handleResetCountCallSuggest } = require("../../logics/template.logic");
+const {
+  handleResetCountCallSuggest,
+  handleUpdateCountCallSuggest,
+} = require("../../logics/template.logic");
 const { MAX_CALL_SUGGEST } = require("../../config/constant");
 
 const TripAsstitantService = {
@@ -157,9 +160,7 @@ const TripAsstitantService = {
       await setCache(cacheKey, updatedCache);
 
       if (!firstCall) {
-        template.countCallSuggest = (template.countCallSuggest || 0) + 1;
-        template.lastCallSuggest = new Date();
-        await template.save();
+        await handleUpdateCountCallSuggest(template);
       }
 
       return result;
@@ -260,9 +261,7 @@ const TripAsstitantService = {
       }
 
       if (!firstCall) {
-        template.countCallSuggest = (template.countCallSuggest || 0) + 1;
-        template.lastCallSuggest = new Date();
-        await template.save();
+        await handleUpdateCountCallSuggest(template);
       }
 
       const updatedCache = {
