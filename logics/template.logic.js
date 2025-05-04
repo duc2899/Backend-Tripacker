@@ -198,6 +198,21 @@ const handleUpdateCountCallSuggest = async (template) => {
   await template.save();
 };
 
+/**
+ * Lấy danh sách thành viên và avatar
+ * @param {Object} template - Template
+ * @param {Boolean} isFlatten - Nếu true thì sẽ flatten danh sách thành viên
+ * @returns {Array} Danh sách thành viên và avatar
+ */
+const handleGetListMembers = (template, isFlatten = false) => {
+  const listMembers = template.listMembers.map((member) => ({
+    ...(isFlatten ? member.toObject() : member),
+    avatar: member.user?.avatar?.url || null,
+    user: undefined, // Remove the nested user object
+  }));
+  return listMembers;
+};
+
 module.exports = {
   handleUpdateListMembers,
   handleCheckExitBackground,
@@ -207,4 +222,5 @@ module.exports = {
   handleCreateListMembers,
   handleResetCountCallSuggest,
   handleUpdateCountCallSuggest,
+  handleGetListMembers,
 };

@@ -132,3 +132,10 @@ router.post(
   myTemplateController.checkPermission(["edit"]),
   memberTaskController.deleteMemberTask
 );
+
+router.get(
+  "/getListMembers/:templateId",
+  authMiddleware(),
+  myTemplateController.checkPermission(["edit", "view"]),
+  memberTaskController.getListMemberTask
+);

@@ -27,6 +27,7 @@ const {
   handleUpdateListMembers,
   handleResetCountCallSuggest,
   handleUpdateCountCallSuggest,
+  handleGetListMembers,
 } = require("../../logics/template.logic");
 
 const { getCache, setCache } = require("../../utils/redisHelper");
@@ -40,6 +41,7 @@ const TripTimeLineService = {
     // Try to get from cache first
     const cacheKey = `trip_timeline:${templateId}`;
     const cachedData = await getCache(cacheKey);
+
     if (cachedData?.infor) {
       // Kiểm tra xem user có trong listMembers không
       const member = cachedData.infor.listMembers.find(
@@ -52,7 +54,10 @@ const TripTimeLineService = {
     }
 
     const template = await TemplateModel.findById(templateId)
-      .populate("owner tripType background")
+      .populate({
+        path: "owner tripType background listMembers.user",
+        select: "avatar",
+      })
       .select(
         "owner from to title startDate endDate budget tripType vihicle listMembers background description distanceKm isPublic members"
       );
@@ -98,6 +103,8 @@ const TripTimeLineService = {
       forceUpdate: false,
     });
 
+    const listMembers = handleGetListMembers(template, true);
+
     const resulttData = {
       infor: {
         ...template.toObject(),
@@ -105,6 +112,7 @@ const TripTimeLineService = {
         tripType: template.tripType.name,
         background: template.background?.background?.url || null,
         role: member?.role,
+        listMembers: listMembers,
       },
       tripActivities: sortedActivities(),
       suggestActivity: suggestActivity.activities,
@@ -207,9 +215,12 @@ const TripTimeLineService = {
     try {
       await updateListMembersSchema.validate(data);
 
-      const template = await TemplateModel.findById(data.templateId).select(
-        "listMembers"
-      );
+      const template = await TemplateModel.findById(data.templateId)
+        .populate({
+          path: "listMembers.user",
+          select: "avatar",
+        })
+        .select("listMembers");
 
       const newListMembers = await handleUpdateListMembers(
         data.listMembers,
@@ -222,13 +233,15 @@ const TripTimeLineService = {
       // Cập nhật cache
       const cacheKey = `trip_timeline:${data.templateId}`;
 
+      const listMembers = handleGetListMembers(template, true);
+
       const cachedData = await getCache(cacheKey);
       if (cachedData) {
-        cachedData.infor.listMembers = template.listMembers;
+        cachedData.infor.listMembers = listMembers;
         await setCache(cacheKey, cachedData);
       }
 
-      return template.listMembers;
+      return listMembers;
     } catch (error) {
       throwError(error);
     }
@@ -238,9 +251,12 @@ const TripTimeLineService = {
     try {
       await updateRoleSchema.validate(data);
 
-      const template = await TemplateModel.findById(data.templateId).select(
-        "listMembers"
-      );
+      const template = await TemplateModel.findById(data.templateId)
+        .populate({
+          path: "listMembers.user",
+          select: "avatar",
+        })
+        .select("listMembers");
 
       const member = template.listMembers.find(
         (mem) => mem._id.toString() === data._id
@@ -251,6 +267,7 @@ const TripTimeLineService = {
       member.role = data.role;
       await template.save();
 
+      const listMembers = handleGetListMembers(template, true);
       // Cập nhật cache
       const cacheKey = `trip_timeline:${data.templateId}`;
       const cachedData = await getCache(cacheKey);
@@ -264,7 +281,7 @@ const TripTimeLineService = {
         }
       }
 
-      return template.listMembers;
+      return listMembers;
     } catch (error) {
       throwError(error);
     }
@@ -275,9 +292,12 @@ const TripTimeLineService = {
       const { email } = reqUser;
       await deleteMembersSchema.validate(data);
 
-      const template = await TemplateModel.findById(data.templateId).select(
-        "listMembers"
-      );
+      const template = await TemplateModel.findById(data.templateId)
+        .populate({
+          path: "listMembers.user",
+          select: "avatar",
+        })
+        .select("listMembers");
 
       // Lọc ra các thành viên không nằm trong danh sách bị xoá
       template.listMembers = template.listMembers.filter((member) => {
@@ -295,15 +315,16 @@ const TripTimeLineService = {
 
       await template.save();
 
+      const listMembers = handleGetListMembers(template, true);
       // Cập nhật cache
       const cacheKey = `trip_timeline:${data.templateId}`;
       const cachedData = await getCache(cacheKey);
       if (cachedData) {
-        cachedData.infor.listMembers = template.listMembers;
+        cachedData.infor.listMembers = listMembers;
         await setCache(cacheKey, cachedData, 3600);
       }
 
-      return template.listMembers;
+      return listMembers;
     } catch (error) {
       throwError(error.message);
     }

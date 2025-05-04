@@ -15,6 +15,7 @@ const {
   moveMemberTaskSchema,
   deleteMemberTaskSchema,
 } = require("../validators/memberTask.validator");
+const { handleGetListMembers } = require("../logics/template.logic");
 
 const CACHE_TTL = 3600; // 1 hour
 const CACHE_PREFIX = "member_tasks:";
@@ -333,8 +334,15 @@ const memberTaskService = {
     }
   },
 
-  async getListMemberTask(templateId) {
+  async getListMemberInTemplate(templateId) {
     try {
+      // Try to get from cache first
+      const cacheKey = `trip_timeline:${templateId}`;
+      const cachedData = await getCache(cacheKey);
+      if (cachedData) {
+        return cachedData.infor.listMembers;
+      }
+
       const template = await TemplateModel.findById(templateId)
         .populate({
           path: "listMembers.user",
@@ -343,7 +351,9 @@ const memberTaskService = {
         .select("listMembers")
         .lean();
 
-      return template.listMembers;
+      const listMembers = handleGetListMembers(template);
+
+      return listMembers;
     } catch (error) {
       throwError(error.message);
     }

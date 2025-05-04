@@ -64,3 +64,18 @@ exports.deleteMemberTask = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.getListMemberTask = async (req, res, next) => {
+  try {
+    const result = await memberTaskService.getListMemberInTemplate(
+      req.params.templateId
+    );
+    return res.status(200).json({
+      message: "COMMON-002",
+      data: result,
+      status: true,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
