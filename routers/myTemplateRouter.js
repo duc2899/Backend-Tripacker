@@ -88,9 +88,10 @@ router.post(
   myTemplateController.updateTripAssistant
 );
 
-router.post(
+router.get(
   "/getSuggestChecklist",
   authMiddleware(),
+  myTemplateController.checkPermission(["edit"]),
   myTemplateController.getSuggestChecklist
 );
 

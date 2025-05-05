@@ -214,7 +214,7 @@ const getSuggestAISchema = yup.object().shape({
 
 const getSuggestPacksFromAISchema = yup.object().shape({
   templateId: objectIdSchema,
-  forceUpdate: yup.string().typeError("COMMON-007").nullable(),
+  forceUpdate: yup.boolean().typeError("COMMON-007").nullable(),
 });
 
 const updateTripAssistantSchema = yup.object().shape({

@@ -195,18 +195,29 @@ const TripAsstitantService = {
       const cacheKey = `trip_assistant:${templateId}`;
       const cachedData = await getCache(cacheKey);
 
-      // Early return if we have cached data and no force update
+      const defaultTripAssistant = {
+        checklistSuggestions: {
+          note_important: [],
+          outfit_suggestions: [],
+          travel_tips: [],
+        },
+      };
+
+      if (forceUpdate === "false") {
+        return (
+          cachedData?.checklistSuggestions ||
+          defaultTripAssistant.checklistSuggestions
+        );
+      }
+
       if (
+        forceUpdate === "true" &&
         cachedData &&
-        !forceUpdate &&
-        template.countCallSuggest <= MAX_CALL_SUGGEST
+        template.countCallSuggest >= MAX_CALL_SUGGEST
       ) {
         return (
-          cachedData.checklistSuggestions || {
-            note_important: [],
-            outfit_suggestions: [],
-            travel_tips: [],
-          }
+          cachedData.checklistSuggestions ||
+          defaultTripAssistant.checklistSuggestions
         );
       }
 
@@ -252,11 +263,8 @@ const TripAsstitantService = {
 
       if (!lastValidJSON) {
         return (
-          cachedData?.checklistSuggestions || {
-            note_important: [],
-            outfit_suggestions: [],
-            travel_tips: [],
-          }
+          cachedData?.checklistSuggestions ||
+          defaultTripAssistant.checklistSuggestions
         );
       }
 
@@ -275,11 +283,8 @@ const TripAsstitantService = {
       const cacheKey = `trip_assistant:${templateId}`;
       const cachedData = await getCache(cacheKey);
       return (
-        cachedData?.checklistSuggestions || {
-          note_important: [],
-          outfit_suggestions: [],
-          travel_tips: [],
-        }
+        cachedData?.checklistSuggestions ||
+        defaultTripAssistant.checklistSuggestions
       );
     }
   },

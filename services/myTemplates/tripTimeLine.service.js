@@ -54,10 +54,10 @@ const TripTimeLineService = {
     }
 
     const template = await TemplateModel.findById(templateId)
-      .populate({
-        path: "owner tripType background listMembers.user",
-        select: "avatar",
-      })
+      .populate("owner", "avatar")
+      .populate("tripType")
+      .populate("listMembers.user", "avatar")
+      .populate("background")
       .select(
         "owner from to title startDate endDate budget tripType vihicle listMembers background description distanceKm isPublic members"
       );
@@ -100,7 +100,7 @@ const TripTimeLineService = {
 
     const suggestActivity = await this.getSuggestActivityFromAI({
       templateId: templateId,
-      forceUpdate: false,
+      forceUpdate: true,
     });
 
     const listMembers = handleGetListMembers(template, true);
@@ -616,7 +616,7 @@ const TripTimeLineService = {
     try {
       await getSuggestAISchema.validate(data);
     } catch (error) {
-      throwError(error.message, 400);
+      throwError(error.message);
     }
 
     try {
@@ -633,11 +633,14 @@ const TripTimeLineService = {
       const cacheKey = `trip_timeline:${templateId}`;
       const cachedData = await getCache(cacheKey);
 
-      // Early return if we have cached data and no force update
+      if (forceUpdate === "false") {
+        return cachedData?.suggestActivity || { activities: [] };
+      }
+
       if (
+        forceUpdate === "true" &&
         cachedData &&
-        !forceUpdate &&
-        template.countCallSuggest <= MAX_CALL_SUGGEST
+        template.countCallSuggest >= MAX_CALL_SUGGEST
       ) {
         return cachedData.suggestActivity || { activities: [] };
       }
@@ -724,24 +727,37 @@ const checkPermission = (userId, permissions, roles) => {
   return hasPermission;
 };
 
-const searchImagesByLocation = async (location) => {
-  const response = await axios.get(
-    "https://www.googleapis.com/customsearch/v1",
-    {
-      params: {
-        key: "AIzaSyCu6nKAdOInwMCqj31SYGW5ba2bPsFX-Vs",
-        cx: "60d157b69ec4a4aee",
-        q: location,
-        searchType: "image",
-        fileType: "webp", // Bắt buộc để tìm ảnh
-        num: 3,
-        imgSize: "large",
-      },
-    }
-  );
+let retryCount = 0;
+const maxRetries = 3;
 
-  const images = response.data.items.map((item) => item.link);
-  return images;
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const searchImagesByLocation = async (location) => {
+  try {
+    const response = await axios.get(
+      "https://www.googleapis.com/customsearch/v1",
+      {
+        params: {
+          key: "AIzaSyAmogaot9ydugb4pB_TBmZwM0kS13cv9NM",
+          cx: "60d157b69ec4a4aee",
+          q: location,
+          searchType: "image",
+          fileType: "webp", // Bắt buộc để tìm ảnh
+          num: 3,
+          imgSize: "large",
+        },
+      }
+    );
+    retryCount = 0; // Reset nếu thành công
+    return response.data.items.map((item) => item.link);
+  } catch (error) {
+    if (error.response?.status === 429 && retryCount < maxRetries) {
+      retryCount++;
+      await delay(2000 * retryCount); // Chờ tăng dần (2s, 4s, 6s...)
+      return searchImagesByLocation(location); // Retry
+    }
+    throw error; // Nếu vẫn lỗi sau maxRetries
+  }
 };
 
 const handelSortedActivities = (activities) => {

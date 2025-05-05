@@ -27,10 +27,12 @@ const handleCreateListMembers = async (
   // Check trùng email trong request
   const emailSet = new Set();
   for (const member of filteredListMembers) {
-    if (emailSet.has(member.email)) {
+    if (member.email && emailSet.has(member.email)) {
       throwError("TEM-023"); // Trùng email trong listMembers
     }
-    emailSet.add(member.email);
+    if (member.email) {
+      emailSet.add(member.email);
+    }
   }
 
   // Tìm các user đã đăng ký
