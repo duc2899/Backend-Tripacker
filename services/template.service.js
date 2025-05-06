@@ -10,6 +10,7 @@ const {
   handleCheckExitBackground,
   handleCheckExitTripType,
   handleCaculatorDistance,
+  handleCheckStartAndEndDate,
 } = require("../logics/template.logic");
 const { MAX_TEMPLATES_PER_USER } = require("../config/constant");
 
@@ -43,6 +44,8 @@ const TemplateService = {
 
       // Kiểm tra dữ liệu
       await createTemplteSchema.validate(data);
+
+      handleCheckStartAndEndDate(startDate, endDate);
 
       const membersToAdd = await handleCreateListMembers(
         listMembers || [],

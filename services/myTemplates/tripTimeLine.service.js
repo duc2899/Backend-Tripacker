@@ -145,10 +145,7 @@ const TripTimeLineService = {
       }
 
       if (updateData?.startDate && updateData?.endDate) {
-        await handleCheckStartAndEndDate(
-          updateData.startDate,
-          updateData.endDate
-        );
+        handleCheckStartAndEndDate(updateData.startDate, updateData.endDate);
         template.startDate = updateData.startDate;
         template.endDate = updateData.endDate;
       }
@@ -346,7 +343,7 @@ const TripTimeLineService = {
 
       // Check if the activity date is within the template's start and end dates
       if (activityDate < startDate || activityDate > endDate) {
-        throwError("COMMON-007");
+        throwError("TEM-038");
       }
 
       // Create a new trip activity
