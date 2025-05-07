@@ -374,6 +374,10 @@ const TripTimeLineService = {
       maxOrder++;
 
       const newActivity = {
+        _id: new mongoose.Types.ObjectId(),
+        updatedAt: new Date(),
+        createdAt: new Date(),
+        completed: false,
         note,
         time,
         location,
@@ -405,9 +409,7 @@ const TripTimeLineService = {
         }
 
         // Thêm activity mới vào ngày
-        dayActivity.activities.push(
-          tripActivity.activities[tripActivity.activities.length - 1]
-        );
+        dayActivity.activities.push(newActivity);
         dayActivity.activities = handelSortedActivities(dayActivity.activities);
 
         await setCache(cacheKey, cachedData);

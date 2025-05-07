@@ -394,7 +394,7 @@ const TripAsstitantService = {
           params: {
             key: process.env.WEATHER_API_KEY,
             q: to.destination,
-            days: days,
+            days: days > 10 ? 10 : days,
             aqi: "no",
             alerts: "no",
           },
