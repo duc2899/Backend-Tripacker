@@ -95,6 +95,13 @@ router.get(
   myTemplateController.getSuggestChecklist
 );
 
+router.get(
+  "/getWeatherForecast/:templateId",
+  authMiddleware(),
+  myTemplateController.checkPermission(["edit", "view"]),
+  myTemplateController.getWeatherForecast
+);
+
 module.exports = router;
 
 // ----------------------------- Member Task ----------------------

@@ -215,6 +215,17 @@ const handleGetListMembers = (template, isFlatten = false) => {
   return listMembers;
 };
 
+const caculateDays = (startDate, endDate) => {
+  const [sM, sD, sY] = startDate.split("/");
+  const [eM, eD, eY] = endDate.split("/");
+
+  const start = new Date(`${sY}-${sM}-${sD}`);
+  const end = new Date(`${eY}-${eM}-${eD}`);
+  const diffTime = Math.abs(end - start);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // Add 1 to include both days
+  return diffDays;
+};
+
 module.exports = {
   handleUpdateListMembers,
   handleCheckExitBackground,
@@ -225,4 +236,5 @@ module.exports = {
   handleResetCountCallSuggest,
   handleUpdateCountCallSuggest,
   handleGetListMembers,
+  caculateDays,
 };

@@ -385,9 +385,6 @@ const TripTimeLineService = {
       tripActivity.activities.push(newActivity);
       await tripActivity.save();
 
-      const result = tripActivity.toObject();
-      result.activities = handelSortedActivities(result.activities);
-
       // Cập nhật cache
       const cacheKey = `trip_timeline:${templateId}`;
       const cachedData = await getCache(cacheKey);
@@ -408,7 +405,9 @@ const TripTimeLineService = {
         }
 
         // Thêm activity mới vào ngày
-        dayActivity.activities.push(newActivity);
+        dayActivity.activities.push(
+          tripActivity.activities[tripActivity.activities.length - 1]
+        );
         dayActivity.activities = handelSortedActivities(dayActivity.activities);
 
         await setCache(cacheKey, cachedData);
@@ -449,8 +448,6 @@ const TripTimeLineService = {
       });
 
       await tripActivity.save();
-      const result = tripActivity.toObject();
-      result.activities = handelSortedActivities(result.activities);
 
       // Cập nhật cache
       const cacheKey = `trip_timeline:${tripActivity.template}`;
@@ -502,8 +499,6 @@ const TripTimeLineService = {
       });
 
       await tripActivity.save();
-      const result = tripActivity.toObject();
-      result.activities = handelSortedActivities(result.activities);
 
       // Cập nhật cache
       const cacheKey = `trip_timeline:${tripActivity.template}`;
@@ -555,9 +550,6 @@ const TripTimeLineService = {
       tripActivity.activities.splice(activityIndex, 1);
 
       await tripActivity.save();
-
-      const result = tripActivity.toObject();
-      result.activities = handelSortedActivities(result.activities);
 
       // Cập nhật cache
       const cacheKey = `trip_timeline:${tripActivity.template}`;

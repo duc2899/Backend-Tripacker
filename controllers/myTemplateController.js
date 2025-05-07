@@ -206,3 +206,18 @@ exports.getSuggestChecklist = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.getWeatherForecast = async (req, res, next) => {
+  try {
+    const result = await TripAsstitantService.getWeatherForecast(
+      req.params.templateId
+    );
+    return res.status(200).json({
+      message: "COMMON-002",
+      data: result,
+      status: true,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

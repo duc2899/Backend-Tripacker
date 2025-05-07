@@ -1,3 +1,5 @@
+const axios = require("axios");
+
 const PackModel = require("../../models/packModel");
 const TemplateModel = require("../../models/templatesModel");
 const throwError = require("../../utils/throwError");
@@ -6,10 +8,12 @@ const { getCache, setCache } = require("../../utils/redisHelper");
 const {
   updateTripAssistantSchema,
   getSuggestPacksFromAISchema,
+  getWeatherForecastSchema,
 } = require("../../validators/template.validator");
 const {
   handleResetCountCallSuggest,
   handleUpdateCountCallSuggest,
+  caculateDays,
 } = require("../../logics/template.logic");
 const { MAX_CALL_SUGGEST } = require("../../config/constant");
 
@@ -19,11 +23,14 @@ const TripAsstitantService = {
 
     // Try to get from cache first
     const cacheKey = `trip_assistant:${templateId}`;
-
     const cachedData = await getCache(cacheKey);
-    if (cachedData?.infor) {
+
+    const cacheKeyTripTimeline = `trip_timeline:${templateId}`;
+    const cachedDataTripTimeline = await getCache(cacheKeyTripTimeline);
+
+    if (cachedDataTripTimeline?.infor && cachedData) {
       // Kiểm tra xem user có trong listMembers không
-      const member = cachedData.infor.listMembers.find(
+      const member = cachedDataTripTimeline.infor.listMembers.find(
         (member) => member.email && member.email === email
       );
       if (!member) {
@@ -69,6 +76,7 @@ const TripAsstitantService = {
       packs: template.pack.categories,
       healthNotes: template.healthNotes,
       checklistSuggestions,
+      infor: cachedDataTripTimeline?.infor,
     };
 
     await setCache(cacheKey, result);
@@ -360,6 +368,46 @@ const TripAsstitantService = {
       }
 
       return currentCache;
+    } catch (error) {
+      throwError(error.message);
+    }
+  },
+
+  async getWeatherForecast(templateId) {
+    try {
+      await getWeatherForecastSchema.validate({ templateId });
+      const template = await TemplateModel.findById(templateId)
+        .select("to startDate endDate")
+        .lean();
+
+      const { startDate, endDate, to } = template;
+      const days = caculateDays(startDate, endDate);
+
+      const cacheKey = `weather_forecast:${to.destination}:${days}`;
+      const cachedData = await getCache(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+      const response = await axios.get(
+        `https://api.weatherapi.com/v1/forecast.json`,
+        {
+          params: {
+            key: process.env.WEATHER_API_KEY,
+            q: to.destination,
+            days: days,
+            aqi: "no",
+            alerts: "no",
+          },
+        }
+      );
+
+      await setCache(cacheKey, response.data);
+
+      return {
+        location: response.data.location,
+        current: response.data.current,
+        forecast: response.data.forecast,
+      };
     } catch (error) {
       throwError(error.message);
     }

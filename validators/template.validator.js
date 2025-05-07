@@ -246,6 +246,10 @@ const updateTripAssistantSchema = yup.object().shape({
 
 const middleCheckPermissionSchema = objectIdSchema;
 
+const getWeatherForecastSchema = yup.object().shape({
+  templateId: objectIdSchema,
+});
+
 module.exports = {
   createTemplteSchema,
   updateTripTimeLineSchema,
@@ -256,4 +260,5 @@ module.exports = {
   getSuggestAISchema,
   getSuggestPacksFromAISchema,
   updateTripAssistantSchema,
+  getWeatherForecastSchema,
 };
