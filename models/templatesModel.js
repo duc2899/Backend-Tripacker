@@ -81,7 +81,7 @@ const templatesSchema = new mongoose.Schema(
     },
     healthNotes: {
       type: String,
-      maxlength: 100,
+      maxlength: 1000,
       default: "",
     },
     createdAt: { type: Date, default: Date.now },

@@ -33,13 +33,15 @@ const {
 const { getCache, setCache } = require("../../utils/redisHelper");
 const { MAX_CALL_SUGGEST } = require("../../config/constant");
 
+const CACHE_PREFIX = "${CACHE_PREFIX}:";
+
 const TripTimeLineService = {
   // ------------------------ Trip Time Line =====------------------ //
   async getTripTimeLine(reqUser, templateId) {
     const { email, userId, fullName } = reqUser;
 
     // Try to get from cache first
-    const cacheKey = `trip_timeline:${templateId}`;
+    const cacheKey = `${CACHE_PREFIX}:${templateId}`;
     const cachedData = await getCache(cacheKey);
 
     if (cachedData?.infor) {
@@ -177,7 +179,7 @@ const TripTimeLineService = {
       const responseTemplate = await template.toObject();
 
       // Cập nhật cache
-      const cacheKey = `trip_timeline:${updateData.templateId}`;
+      const cacheKey = `${CACHE_PREFIX}:${updateData.templateId}`;
       let cachedData = await getCache(cacheKey);
       if (cachedData) {
         cachedData.infor = {
@@ -228,7 +230,7 @@ const TripTimeLineService = {
       await template.save();
 
       // Cập nhật cache
-      const cacheKey = `trip_timeline:${data.templateId}`;
+      const cacheKey = `${CACHE_PREFIX}:${data.templateId}`;
 
       const listMembers = handleGetListMembers(template, true);
 
@@ -266,7 +268,7 @@ const TripTimeLineService = {
 
       const listMembers = handleGetListMembers(template, true);
       // Cập nhật cache
-      const cacheKey = `trip_timeline:${data.templateId}`;
+      const cacheKey = `${CACHE_PREFIX}:${data.templateId}`;
       const cachedData = await getCache(cacheKey);
       if (cachedData) {
         const memberIndex = cachedData.infor.listMembers.findIndex(
@@ -314,7 +316,7 @@ const TripTimeLineService = {
 
       const listMembers = handleGetListMembers(template, true);
       // Cập nhật cache
-      const cacheKey = `trip_timeline:${data.templateId}`;
+      const cacheKey = `${CACHE_PREFIX}:${data.templateId}`;
       const cachedData = await getCache(cacheKey);
       if (cachedData) {
         cachedData.infor.listMembers = listMembers;
@@ -390,7 +392,7 @@ const TripTimeLineService = {
       await tripActivity.save();
 
       // Cập nhật cache
-      const cacheKey = `trip_timeline:${templateId}`;
+      const cacheKey = `${CACHE_PREFIX}:${templateId}`;
       const cachedData = await getCache(cacheKey);
       if (cachedData) {
         // Tìm hoặc tạo mới ngày trong tripActivities
@@ -452,7 +454,7 @@ const TripTimeLineService = {
       await tripActivity.save();
 
       // Cập nhật cache
-      const cacheKey = `trip_timeline:${tripActivity.template}`;
+      const cacheKey = `${CACHE_PREFIX}:${tripActivity.template}`;
       const cachedData = await getCache(cacheKey);
       if (cachedData) {
         // Tìm activity trong cache và cập nhật
@@ -503,7 +505,7 @@ const TripTimeLineService = {
       await tripActivity.save();
 
       // Cập nhật cache
-      const cacheKey = `trip_timeline:${tripActivity.template}`;
+      const cacheKey = `${CACHE_PREFIX}:${tripActivity.template}`;
       const cachedData = await getCache(cacheKey);
       if (cachedData) {
         // Cập nhật order trong cache
@@ -554,7 +556,7 @@ const TripTimeLineService = {
       await tripActivity.save();
 
       // Cập nhật cache
-      const cacheKey = `trip_timeline:${tripActivity.template}`;
+      const cacheKey = `${CACHE_PREFIX}:${tripActivity.template}`;
       const cachedData = await getCache(cacheKey);
       if (cachedData) {
         // Xóa activity trong cache
@@ -621,7 +623,7 @@ const TripTimeLineService = {
 
       await handleResetCountCallSuggest(template);
 
-      const cacheKey = `trip_timeline:${templateId}`;
+      const cacheKey = `${CACHE_PREFIX}:${templateId}`;
       const cachedData = await getCache(cacheKey);
 
       if (forceUpdate === "false") {
@@ -700,7 +702,7 @@ const TripTimeLineService = {
     } catch (error) {
       // Handle other errors (database, AI, etc.)
       console.error("Error in getSuggestActivityFromAI:", error);
-      const cacheKey = `trip_timeline:${templateId}`;
+      const cacheKey = `${CACHE_PREFIX}:${templateId}`;
       const cachedData = await getCache(cacheKey);
       return cachedData?.suggestActivity || { activities: [] };
     }

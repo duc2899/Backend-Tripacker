@@ -1,19 +1,31 @@
 const mongoose = require("mongoose");
 
 const packSchema = new mongoose.Schema({
-  categories: [
-    {
-      category: { type: String, required: true }, // VD: "Quần áo", "Phụ kiện"
-      items: [
-        {
-          name: { type: String, required: true }, // VD: "Áo khoác", "Kính râm"
-          isCheck: { type: Boolean, default: false }, // Trạng thái riêng của user
-        },
-      ],
-      isDefault: { type: Boolean, default: false }, // Xác định đây có phải item mặc định không
-    },
-  ],
+  categories: {
+    type: [
+      {
+        category: { type: String, required: true, unique: true, maxlength: 50 },
+        items: [
+          {
+            name: { type: String, required: true, maxlength: 50 },
+            isCheck: { type: Boolean, default: false },
+          },
+        ],
+        isDefault: { type: Boolean, default: false },
+      },
+    ],
+    validate: [arrayLimit, "{PATH} exceeds the limit of 100"], // Giới hạn số lượng categories
+  },
+  template: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "templates",
+    required: true,
+  },
 });
+
+function arrayLimit(val) {
+  return val.length <= 100;
+}
 
 const Pack = mongoose.model("Packs", packSchema);
 module.exports = Pack;

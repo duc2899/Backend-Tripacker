@@ -1,4 +1,5 @@
 const axios = require("axios");
+const mongoose = require("mongoose");
 
 const PackModel = require("../../models/packModel");
 const TemplateModel = require("../../models/templatesModel");
@@ -6,9 +7,11 @@ const throwError = require("../../utils/throwError");
 const { callAI } = require("../getSuggestAI");
 const { getCache, setCache } = require("../../utils/redisHelper");
 const {
-  updateTripAssistantSchema,
   getSuggestPacksFromAISchema,
   getWeatherForecastSchema,
+  managerCategorySchema,
+  managerItemsCategorySchema,
+  updateTripAsstitantSchema,
 } = require("../../validators/template.validator");
 const {
   handleResetCountCallSuggest,
@@ -17,12 +20,14 @@ const {
 } = require("../../logics/template.logic");
 const { MAX_CALL_SUGGEST } = require("../../config/constant");
 
+const CACHE_PREFIX = "trip_assistant:";
+
 const TripAsstitantService = {
   async getTripAsstitant(reqUser, templateId) {
     const { email, userId, fullName } = reqUser;
 
     // Try to get from cache first
-    const cacheKey = `trip_assistant:${templateId}`;
+    const cacheKey = `${CACHE_PREFIX}:${templateId}`;
     const cachedData = await getCache(cacheKey);
 
     const cacheKeyTripTimeline = `trip_timeline:${templateId}`;
@@ -106,7 +111,7 @@ const TripAsstitantService = {
       await handleResetCountCallSuggest(template);
 
       // Try to get from cache first
-      const cacheKey = `trip_assistant:${templateId}`;
+      const cacheKey = `${CACHE_PREFIX}:${templateId}`;
       const cachedData = await getCache(cacheKey);
 
       // Early return if we have cached data and no force update
@@ -173,7 +178,7 @@ const TripAsstitantService = {
 
       return result;
     } catch (error) {
-      const cacheKey = `trip_assistant:${templateId}`;
+      const cacheKey = `${CACHE_PREFIX}:${templateId}`;
       const cachedData = await getCache(cacheKey);
       return cachedData?.packs || template?.pack?.categories || [];
     }
@@ -200,7 +205,7 @@ const TripAsstitantService = {
 
       await handleResetCountCallSuggest(template);
 
-      const cacheKey = `trip_assistant:${templateId}`;
+      const cacheKey = `${CACHE_PREFIX}:${templateId}`;
       const cachedData = await getCache(cacheKey);
 
       const defaultTripAssistant = {
@@ -288,7 +293,7 @@ const TripAsstitantService = {
 
       return lastValidJSON;
     } catch (error) {
-      const cacheKey = `trip_assistant:${templateId}`;
+      const cacheKey = `${CACHE_PREFIX}:${templateId}`;
       const cachedData = await getCache(cacheKey);
       return (
         cachedData?.checklistSuggestions ||
@@ -299,75 +304,197 @@ const TripAsstitantService = {
 
   async updateTripAssistant(data) {
     try {
-      await updateTripAssistantSchema.validate(data);
-
-      const template = await TemplateModel.findById(data.templateId);
-      if (!template) {
-        throwError("TEM-012");
-      }
-
-      // Get the pack associated with the template
-      const pack = await PackModel.findById(template.pack);
-      if (!pack) {
-        throwError("TEM-013");
-      }
-
-      // Create a map of existing categories by ID for quick lookup
-      const existingCategoriesMap = new Map(
-        pack.categories.map((cat) => [cat._id.toString(), cat])
+      await updateTripAsstitantSchema.validate(data);
+      const { healthNotes, templateId } = data;
+      const template = await TemplateModel.findOneAndUpdate(
+        {
+          _id: templateId,
+        },
+        {
+          $set: { healthNotes: healthNotes }, // cập nhật category name
+        },
+        { new: true }
       );
 
-      if (data.categories) {
-        // Process each category from the input data
-        data.categories.forEach((newCategory) => {
-          const existingCategory = existingCategoriesMap.get(newCategory._id);
-
-          if (existingCategory) {
-            // Only update category and isDefault if it's not a default category
-            if (!existingCategory.isDefault) {
-              existingCategory.category = newCategory.category;
-            }
-
-            // Create a map of existing items by ID for quick lookup
-            const existingItemsMap = new Map(
-              existingCategory.items.map((item) => [item._id.toString(), item])
-            );
-
-            // Process each item from the input data
-            newCategory.items.forEach((newItem) => {
-              const existingItem = existingItemsMap.get(newItem._id);
-
-              if (existingItem) {
-                // Update item properties
-                existingItem.name = newItem.name;
-                existingItem.isCheck = newItem.isCheck;
-              }
-            });
-          }
-        });
+      if (!template) {
+        throwError("COMMON-005");
       }
-
-      // Update health notes if provided
-      if (data.healthNotes !== undefined) {
-        template.healthNotes = data.healthNotes;
-      }
-
-      await pack.save();
-      await template.save();
 
       // Get current cache and update both packs and healthNotes
-      const tripAssistantCacheKey = `trip_assistant:${data.templateId}`;
+      const tripAssistantCacheKey = `${CACHE_PREFIX}:${templateId}`;
       const currentCache = await getCache(tripAssistantCacheKey);
 
       if (currentCache) {
-        currentCache.packs = pack.categories;
-        if (data.healthNotes) {
-          currentCache.healthNotes = data.healthNotes;
-        }
+        currentCache.healthNotes = template.healthNotes;
         await setCache(tripAssistantCacheKey, currentCache);
       }
 
-      return currentCache;
+      return template.healthNotes;
+    } catch (error) {
+      throwError(error.message);
+    }
+  },
+
+  async managerCategory(data) {
+    try {
+      await managerCategorySchema.validate(data);
+      const { categoryName, type, templateId, categoryId } = data;
+
+      let result;
+
+      switch (type) {
+        case "create":
+          if (!categoryName) {
+            throwError("COMMON-006");
+          }
+          const newCategory = {
+            category: categoryName,
+            items: [],
+            isDefault: false,
+            _id: new mongoose.Types.ObjectId(),
+          };
+          const newListCategories = await PackModel.findOneAndUpdate(
+            {
+              template: templateId,
+              "categories.category": { $ne: newCategory.category },
+            },
+            { $push: { categories: newCategory } },
+            { new: true }
+          );
+
+          if (!newListCategories) {
+            throwError("TEM-039");
+          }
+          result = newListCategories;
+          break;
+        case "update":
+          if (!categoryName) {
+            throwError("COMMON-006");
+          }
+          const pack = await PackModel.findOne({
+            template: templateId,
+          });
+
+          if (!pack) {
+            throwError("TEM-039");
+          }
+
+          // 2. Kiểm tra xem categoryName đã tồn tại chưa
+          const isDuplicate = pack.categories.some(
+            (cat) => cat.category === categoryName
+          );
+
+          if (isDuplicate) {
+            throwError("TEM-039");
+          }
+
+          const updatedPack = await PackModel.findOneAndUpdate(
+            {
+              template: templateId,
+              "categories._id": categoryId, // ID của category con trong mảng
+            },
+            {
+              $set: { "categories.$.category": categoryName }, // cập nhật category name
+            },
+            { new: true }
+          );
+
+          result = updatedPack;
+          break;
+        case "delete":
+          const deletedPack = await PackModel.findOneAndUpdate(
+            { template: templateId },
+            { $pull: { categories: { _id: categoryId } } },
+            { new: true }
+          );
+
+          if (!deletedPack) {
+            throwError("TEM-042"); // Không tìm thấy pack hoặc không xóa được
+          }
+          result = deletedPack;
+          break;
+        default:
+          throwError("TEM-044");
+          break;
+      }
+      // Get current cache and update both packs and healthNotes
+      const tripAssistantCacheKey = `${CACHE_PREFIX}:${data.templateId}`;
+      const currentCache = await getCache(tripAssistantCacheKey);
+
+      if (currentCache) {
+        currentCache.packs = result;
+        await setCache(tripAssistantCacheKey, currentCache);
+      }
+
+      return result;
+    } catch (error) {
+      if (error.code === 11000) {
+        // Duplicate key error (nếu unique index hoạt động)
+        throwError("TEM-039");
+      }
+      throwError(error.message);
+    }
+  },
+
+  async managerItemsCategory(data) {
+    try {
+      await managerItemsCategorySchema.validate(data);
+      const { itemName, isCheck, type, templateId, categoryId, itemId } = data;
+
+      const pack = await PackModel.findOne({ template: templateId });
+      if (!pack) throwError("TEM-042"); // Không tìm thấy pack
+
+      const category = pack.categories.id(categoryId);
+      if (!category) throwError("TEM-043"); // Không tìm thấy category
+
+      switch (type) {
+        case "create":
+          if (!itemName) {
+            throwError("COMMON-006");
+          }
+
+          const isDuplicate = category.items.some(
+            (item) => item.name === itemName
+          );
+          if (isDuplicate) throwError("TEM-040"); // Tên item đã tồn tại
+
+          category.items.push({ name: itemName, isCheck: false });
+          break;
+
+        case "update":
+          if (!itemName) {
+            throwError("COMMON-006");
+          }
+          const itemToUpdate = category.items.id(itemId);
+          if (!itemToUpdate) throwError("TEM-041"); // Không tìm thấy item
+
+          itemToUpdate.name = itemName;
+          itemToUpdate.isCheck = isCheck;
+          break;
+
+        case "delete":
+          const itemIndex = category.items.findIndex(
+            (i) => i._id.toString() === itemId
+          );
+          if (itemIndex === -1) throwError("TEM-041"); // Không tìm thấy item
+
+          category.items.splice(itemIndex, 1);
+          break;
+
+        default:
+          throwError("TEM-044");
+      }
+
+      await pack.save();
+
+      const tripAssistantCacheKey = `${CACHE_PREFIX}:${data.templateId}`;
+      const currentCache = await getCache(tripAssistantCacheKey);
+
+      if (currentCache) {
+        currentCache.packs = pack;
+        await setCache(tripAssistantCacheKey, currentCache);
+      }
+      return pack;
     } catch (error) {
       throwError(error.message);
     }

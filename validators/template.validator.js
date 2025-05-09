@@ -15,6 +15,16 @@ const objectIdSchema = yup
     );
   });
 
+const objectIdNullAbleSchema = yup
+  .string()
+  .nullable()
+  .test("is-valid-object-id", "COMMON-007", (value) => {
+    if (!value || value === "") return true; // Cho phép null hoặc chuỗi rỗng
+    return (
+      mongoose.Types.ObjectId.isValid(value) && /^[0-9a-fA-F]{24}$/.test(value)
+    );
+  });
+
 const locationSchema = yup
   .object({
     destination: yup.string().nullable(),
@@ -37,6 +47,12 @@ const roleSchema = yup
   .string()
   .typeError("COMMON-007")
   .oneOf(["edit", "view"], "COMMON-007")
+  .required("COMMON-006");
+
+const typeSchema = yup
+  .string()
+  .typeError("COMMON-007")
+  .oneOf(["create", "delete", "update"], "COMMON-007")
   .required("COMMON-006");
 
 const listMembersSchema = yup
@@ -244,6 +260,26 @@ const updateTripAssistantSchema = yup.object().shape({
   templateId: objectIdSchema,
 });
 
+const managerCategorySchema = yup.object().shape({
+  templateId: objectIdSchema,
+  categoryId: objectIdNullAbleSchema,
+  categoryName: yup.string().typeError("COMMON-007").nullable(),
+  type: typeSchema,
+});
+
+const managerItemsCategorySchema = yup.object().shape({
+  templateId: objectIdSchema,
+  categoryId: objectIdNullAbleSchema,
+  itemId: objectIdNullAbleSchema,
+  itemName: yup.string().typeError("COMMON-007").nullable(),
+  isCheck: yup.boolean().typeError("COMMON-007").nullable(),
+  type: typeSchema,
+});
+
+const updateTripAsstitantSchema = yup.object().shape({
+  healthNotes: yup.string().typeError("COMMON-007").required("COMMON-006"),
+});
+
 const middleCheckPermissionSchema = objectIdSchema;
 
 const getWeatherForecastSchema = yup.object().shape({
@@ -261,4 +297,7 @@ module.exports = {
   getSuggestPacksFromAISchema,
   updateTripAssistantSchema,
   getWeatherForecastSchema,
+  managerCategorySchema,
+  managerItemsCategorySchema,
+  updateTripAsstitantSchema,
 };

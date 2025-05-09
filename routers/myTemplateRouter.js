@@ -88,6 +88,20 @@ router.post(
   myTemplateController.updateTripAssistant
 );
 
+router.post(
+  "/managerCategory",
+  authMiddleware(),
+  myTemplateController.checkPermission(["edit", "view"]),
+  myTemplateController.managerCategory
+);
+
+router.post(
+  "/managerItemsCategory",
+  authMiddleware(),
+  myTemplateController.checkPermission(["edit", "view"]),
+  myTemplateController.managerItemsCategory
+);
+
 router.get(
   "/getSuggestChecklist",
   authMiddleware(),

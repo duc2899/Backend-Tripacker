@@ -192,6 +192,32 @@ exports.updateTripAssistant = async (req, res, next) => {
   }
 };
 
+exports.managerCategory = async (req, res, next) => {
+  try {
+    const result = await TripAsstitantService.managerCategory(req.body);
+    return res.status(200).json({
+      message: "COMMON-003",
+      data: result,
+      status: true,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.managerItemsCategory = async (req, res, next) => {
+  try {
+    const result = await TripAsstitantService.managerItemsCategory(req.body);
+    return res.status(200).json({
+      message: "COMMON-003",
+      data: result,
+      status: true,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.getSuggestChecklist = async (req, res, next) => {
   try {
     const result = await TripAsstitantService.getSuggestChecklistFromAI(
