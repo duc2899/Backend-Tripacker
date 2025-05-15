@@ -5,26 +5,28 @@ const packSchema = new mongoose.Schema({
     type: [
       {
         category: { type: String, required: true, unique: true, maxlength: 50 },
-        items: [
-          {
-            name: { type: String, required: true, maxlength: 50 },
-            isCheck: { type: Boolean, default: false },
-          },
-        ],
+        items: {
+          type: [
+            {
+              name: { type: String, required: true, maxlength: 50 },
+              isCheck: { type: Boolean, default: false },
+            },
+          ],
+          validate: [arrayLimitItem, "{PATH} exceeds the limit of 15"], // Giới hạn số lượng items
+        },
         isDefault: { type: Boolean, default: false },
       },
     ],
-    validate: [arrayLimit, "{PATH} exceeds the limit of 100"], // Giới hạn số lượng categories
-  },
-  template: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "templates",
-    required: true,
+    validate: [arrayLimitCategory, "{PATH} exceeds the limit of 6"], // Giới hạn số lượng categories
   },
 });
 
-function arrayLimit(val) {
-  return val.length <= 100;
+function arrayLimitCategory(val) {
+  return val.length <= 6;
+}
+
+function arrayLimitItem(val) {
+  return val.length <= 15;
 }
 
 const Pack = mongoose.model("Packs", packSchema);

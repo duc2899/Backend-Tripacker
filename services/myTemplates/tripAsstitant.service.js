@@ -18,29 +18,25 @@ const {
   handleUpdateCountCallSuggest,
   caculateDays,
 } = require("../../logics/template.logic");
-const { MAX_CALL_SUGGEST } = require("../../config/constant");
-
-const CACHE_PREFIX = "trip_assistant:";
+const {
+  MAX_CALL_SUGGEST,
+  MAX_CATEGORY_PER_TEMPLATE,
+  MAX_ITEM_PER_CATEGORY,
+} = require("../../config/constant");
+const {
+  CACHE_WEATHER_FORECAST,
+  CACHE_TEMPLATE_TRIP_ASSTIANT,
+} = require("../../config/cache");
 
 const TripAsstitantService = {
   async getTripAsstitant(reqUser, templateId) {
     const { email, userId, fullName } = reqUser;
 
     // Try to get from cache first
-    const cacheKey = `${CACHE_PREFIX}:${templateId}`;
+    const cacheKey = `${CACHE_TEMPLATE_TRIP_ASSTIANT}:${templateId}`;
     const cachedData = await getCache(cacheKey);
 
-    const cacheKeyTripTimeline = `trip_timeline:${templateId}`;
-    const cachedDataTripTimeline = await getCache(cacheKeyTripTimeline);
-
-    if (cachedDataTripTimeline?.infor && cachedData) {
-      // Kiểm tra xem user có trong listMembers không
-      const member = cachedDataTripTimeline.infor.listMembers.find(
-        (member) => member.email && member.email === email
-      );
-      if (!member) {
-        throwError("TEM-029", 403);
-      }
+    if (cachedData) {
       return cachedData;
     }
 
@@ -81,7 +77,6 @@ const TripAsstitantService = {
       packs: template.pack.categories,
       healthNotes: template.healthNotes,
       checklistSuggestions,
-      infor: cachedDataTripTimeline?.infor,
     };
 
     await setCache(cacheKey, result);
@@ -111,7 +106,7 @@ const TripAsstitantService = {
       await handleResetCountCallSuggest(template);
 
       // Try to get from cache first
-      const cacheKey = `${CACHE_PREFIX}:${templateId}`;
+      const cacheKey = `${CACHE_TEMPLATE_TRIP_ASSTIANT}:${templateId}`;
       const cachedData = await getCache(cacheKey);
 
       // Early return if we have cached data and no force update
@@ -178,7 +173,7 @@ const TripAsstitantService = {
 
       return result;
     } catch (error) {
-      const cacheKey = `${CACHE_PREFIX}:${templateId}`;
+      const cacheKey = `${CACHE_TEMPLATE_TRIP_ASSTIANT}:${templateId}`;
       const cachedData = await getCache(cacheKey);
       return cachedData?.packs || template?.pack?.categories || [];
     }
@@ -205,7 +200,7 @@ const TripAsstitantService = {
 
       await handleResetCountCallSuggest(template);
 
-      const cacheKey = `${CACHE_PREFIX}:${templateId}`;
+      const cacheKey = `${CACHE_TEMPLATE_TRIP_ASSTIANT}:${templateId}`;
       const cachedData = await getCache(cacheKey);
 
       const defaultTripAssistant = {
@@ -246,7 +241,7 @@ const TripAsstitantService = {
             null,
             2
           )}
-          
+          format ngay la: MM/DD/YY
           1 Dua cho toi nhung luu y quan trong ve thoi tiet va hanh ly.
           2 Goi y cho toi trang phuc phu hop voi thoi tiet.
           3 Goi y cho toi tip du lich nhe
@@ -293,7 +288,7 @@ const TripAsstitantService = {
 
       return lastValidJSON;
     } catch (error) {
-      const cacheKey = `${CACHE_PREFIX}:${templateId}`;
+      const cacheKey = `${CACHE_TEMPLATE_TRIP_ASSTIANT}:${templateId}`;
       const cachedData = await getCache(cacheKey);
       return (
         cachedData?.checklistSuggestions ||
@@ -321,7 +316,7 @@ const TripAsstitantService = {
       }
 
       // Get current cache and update both packs and healthNotes
-      const tripAssistantCacheKey = `${CACHE_PREFIX}:${templateId}`;
+      const tripAssistantCacheKey = `${CACHE_TEMPLATE_TRIP_ASSTIANT}:${templateId}`;
       const currentCache = await getCache(tripAssistantCacheKey);
 
       if (currentCache) {
@@ -338,7 +333,15 @@ const TripAsstitantService = {
   async managerCategory(data) {
     try {
       await managerCategorySchema.validate(data);
-      const { categoryName, type, templateId, categoryId } = data;
+      const { categoryName, type, templateId, categoryId, packId } = data;
+
+      const pack = await PackModel.findById(packId).lean();
+
+      if (!pack) throwError("TEM-042");
+
+      if (pack.categories.length >= MAX_CATEGORY_PER_TEMPLATE) {
+        throwError("TEM-045");
+      }
 
       let result;
 
@@ -353,13 +356,17 @@ const TripAsstitantService = {
             isDefault: false,
             _id: new mongoose.Types.ObjectId(),
           };
+
           const newListCategories = await PackModel.findOneAndUpdate(
             {
-              template: templateId,
+              _id: packId,
               "categories.category": { $ne: newCategory.category },
             },
             { $push: { categories: newCategory } },
-            { new: true }
+            {
+              new: true,
+              runValidators: true,
+            }
           );
 
           if (!newListCategories) {
@@ -371,9 +378,7 @@ const TripAsstitantService = {
           if (!categoryName) {
             throwError("COMMON-006");
           }
-          const pack = await PackModel.findOne({
-            template: templateId,
-          });
+          const pack = await PackModel.findById(packId);
 
           if (!pack) {
             throwError("TEM-039");
@@ -390,22 +395,22 @@ const TripAsstitantService = {
 
           const updatedPack = await PackModel.findOneAndUpdate(
             {
-              template: templateId,
+              _id: packId,
               "categories._id": categoryId, // ID của category con trong mảng
             },
             {
               $set: { "categories.$.category": categoryName }, // cập nhật category name
             },
-            { new: true }
+            { new: true, runValidators: true }
           );
 
           result = updatedPack;
           break;
         case "delete":
           const deletedPack = await PackModel.findOneAndUpdate(
-            { template: templateId },
+            { _id: packId },
             { $pull: { categories: { _id: categoryId } } },
-            { new: true }
+            { new: true, runValidators: true }
           );
 
           if (!deletedPack) {
@@ -418,7 +423,7 @@ const TripAsstitantService = {
           break;
       }
       // Get current cache and update both packs and healthNotes
-      const tripAssistantCacheKey = `${CACHE_PREFIX}:${data.templateId}`;
+      const tripAssistantCacheKey = `${CACHE_TEMPLATE_TRIP_ASSTIANT}:${templateId}`;
       const currentCache = await getCache(tripAssistantCacheKey);
 
       if (currentCache) {
@@ -439,13 +444,26 @@ const TripAsstitantService = {
   async managerItemsCategory(data) {
     try {
       await managerItemsCategorySchema.validate(data);
-      const { itemName, isCheck, type, templateId, categoryId, itemId } = data;
+      const {
+        itemName,
+        isCheck,
+        type,
+        templateId,
+        categoryId,
+        itemId,
+        packId,
+      } = data;
 
-      const pack = await PackModel.findOne({ template: templateId });
+      const pack = await PackModel.findById(packId);
       if (!pack) throwError("TEM-042"); // Không tìm thấy pack
 
       const category = pack.categories.id(categoryId);
+
       if (!category) throwError("TEM-043"); // Không tìm thấy category
+
+      if (category.items.length >= MAX_ITEM_PER_CATEGORY) {
+        throwError("TEM-045");
+      }
 
       switch (type) {
         case "create":
@@ -487,7 +505,7 @@ const TripAsstitantService = {
 
       await pack.save();
 
-      const tripAssistantCacheKey = `${CACHE_PREFIX}:${data.templateId}`;
+      const tripAssistantCacheKey = `${CACHE_TEMPLATE_TRIP_ASSTIANT}:${templateId}`;
       const currentCache = await getCache(tripAssistantCacheKey);
 
       if (currentCache) {
@@ -510,7 +528,7 @@ const TripAsstitantService = {
       const { startDate, endDate, to } = template;
       const days = caculateDays(startDate, endDate);
 
-      const cacheKey = `weather_forecast:${to.destination}:${days}`;
+      const cacheKey = `${CACHE_WEATHER_FORECAST}:${to.destination}:${days}`;
       const cachedData = await getCache(cacheKey);
       if (cachedData) {
         return cachedData;

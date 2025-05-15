@@ -21,10 +21,37 @@ exports.verifyEmail = async (req, res, next) => {
   }
 };
 
-exports.login = async (req, res, next) => {
+exports.loginNormal = async (req, res, next) => {
   try {
-    const result = await authServices.login(req.body, res);
+    const result = await authServices.loginNormal(req.body, res);
+    return res.status(200).json({
+      status: true,
+      message: "AUTH-012",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
+exports.requestGoogle = async (req, res, next) => {
+  try {
+    res.header("Access-Control-Allow-Origin", "http://localhost:5173");
+    res.header("Referrer-Policy", "no-referrer");
+    const reuslt = await authServices.requestGoogleLogin(res);
+    return res.status(200).json({
+      status: true,
+      message: "COMMON-002",
+      data: reuslt,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.callBackGoogle = async (req, res, next) => {
+  try {
+    const result = await authServices.callBackGoogle(req.body, res);
     return res.status(200).json({
       status: true,
       message: "AUTH-012",

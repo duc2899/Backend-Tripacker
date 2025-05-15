@@ -1,6 +1,7 @@
 const { v4 } = require("uuid");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const { OAuth2Client } = require("google-auth-library");
 
 const User = require("../models/userModel");
 const verifyEmailTemplate = require("../templates/mail/verifyAccount");
@@ -20,12 +21,17 @@ const { checkBirthDay, generateCustomAvatar } = require("../utils/index.js");
 const {
   registerSchema,
   verifyEmailSchema,
-  loginSchema,
+  loginNormalSchema,
   logoutchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
+  linkAccountSchema,
+  loginGoogleSchema,
+  verifyLinkAccountSchema,
 } = require("../validators/auth.validator.js");
+const { getUserInfoFromGoogle } = require("../utils/googleAuth.js");
+const linkAccountTemplate = require("../templates/mail/linkAccount.js");
 
 const isDevelopment = process.env.NODE_ENV === "development";
 
@@ -75,6 +81,11 @@ const AuthService = {
           }
           return { message: isTokenValid ? "AUTH-003" : "AUTH-004" };
         }
+
+        if (user.verified && user.provider === "google") {
+          throwError("AUTH-035");
+        }
+
         throwError("AUTH-006", 409);
       }
 
@@ -107,11 +118,11 @@ const AuthService = {
     }
   },
 
-  async login(data, res) {
+  async loginNormal(data, res) {
     try {
       const { email, password, rememberMe } = data;
 
-      await loginSchema.validate(data);
+      await loginNormalSchema.validate(data);
 
       const userDoc = await User.findOne({
         email: email,
@@ -121,16 +132,20 @@ const AuthService = {
         throwError("AUTH-008");
       }
 
-      if (!(await userDoc.isCorrectPassword(password, userDoc.password))) {
-        throwError("AUTH-008");
-      }
-
       if (!userDoc.verified) {
         throwError("AUTH-009");
       }
 
       if (userDoc.isDisabled) {
         throwError("AUTH-010");
+      }
+
+      if (userDoc.provider === "google") {
+        throwError("AUTH-035");
+      }
+
+      if (!(await userDoc.isCorrectPassword(password, userDoc.password))) {
+        throwError("AUTH-008");
       }
 
       const token = signToken(userDoc._id, v4(), rememberMe);
@@ -146,9 +161,157 @@ const AuthService = {
       return {
         _id: userDoc._id,
         access_token: token,
-        status: true,
-        message: "AUTH-032",
       };
+    } catch (error) {
+      throwError(error.message);
+    }
+  },
+
+  async requestGoogleLogin() {
+    try {
+      const oauth2Client = new OAuth2Client(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        process.env.GOOGLE_REDIRECT_URI
+      );
+      const scopes = [
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile",
+      ];
+      // Tạo URL xác thực
+      const url = oauth2Client.generateAuthUrl({
+        access_type: "offline",
+        scope: scopes,
+        prompt: "consent",
+      });
+      return url;
+    } catch (error) {
+      throwError(error.message);
+    }
+  },
+
+  async callBackGoogle(data, res) {
+    try {
+      await loginGoogleSchema.validate(data);
+      const { code } = data;
+      const oauth2Client = new OAuth2Client(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        process.env.GOOGLE_REDIRECT_URI
+      );
+      const { tokens } = await oauth2Client.getToken(code);
+      const { access_token } = tokens;
+
+      const userData = await getUserInfoFromGoogle(access_token);
+
+      let user = await User.findOne({ email: userData.email });
+
+      if (!user) {
+        user = await User.create({
+          email: userData.email,
+          fullName: userData.name,
+          avatar: {
+            id: "",
+            url: userData.picture,
+          },
+          provider: "google",
+          googleId: userData.id,
+          verified: true,
+        });
+      }
+
+      if (!canLogin("google", user.provider)) {
+        throwError("AUTH-034");
+      }
+
+      const token = signToken(user._id, v4());
+
+      // Lưu token vào HttpOnly Cookie
+      res.cookie("access_token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production", // Chỉ gửi qua HTTPS khi ở môi trường production
+        sameSite: isDevelopment ? "Strict" : "None",
+        maxAge: MAX_AGE_COOKIE,
+      });
+
+      return {
+        _id: user._id,
+        access_token: token,
+      };
+    } catch (error) {
+      throwError(error.message);
+    }
+  },
+
+  async linkAccount(data) {
+    try {
+      await linkAccountSchema.validate(data);
+
+      const { email, password } = data;
+
+      const userDoc = await User.findOne({ email: email });
+      if (!userDoc) {
+        throwError("AUTH-014");
+      }
+
+      if (userDoc.isDisabled) {
+        throwError("AUTH-010");
+      }
+
+      if (!userDoc.verified) {
+        throwError("AUTH-009");
+      }
+
+      switch (userDoc.provider) {
+        case "google":
+          if (
+            userDoc.linkAccountExpires &&
+            userDoc.linkAccountExpires > Date.now()
+          ) {
+            throwError("AUTH-023");
+          }
+          const resetToken = await userDoc.createlinkAccountToken();
+
+          await userDoc.save({ validateModifiedOnly: true });
+
+          const verifyUrl = `${
+            isDevelopment
+              ? process.env.DEV_ALLOW_URL
+              : process.env.PRODUCTION_ALLOW_URL
+          }/link-account/?token=${resetToken}`;
+
+          // Send Email
+          await mailServices.sendEmail({
+            to: email,
+            subject: "Liên Kết Tài Khoản Tripacker",
+            html: linkAccountTemplate(
+              userDoc.fullName,
+              verifyUrl,
+              TIME_CHANGE_PASSWORD
+            ),
+          });
+          return "AUTH-038";
+        case "local":
+          if (!password) {
+            throwError("COMMON-006");
+          }
+
+          if (!(await userDoc.isCorrectPassword(password, userDoc.password))) {
+            throwError("AUTH-029");
+          }
+
+          userDoc.provider = "both";
+          userDoc.save({
+            validateModifiedOnly: true,
+          });
+
+          return "COMMON-003";
+
+        case "both":
+          throwError("AUTH-037");
+        default:
+          throwError("COMMON-007");
+      }
     } catch (error) {
       throwError(error.message);
     }
@@ -183,6 +346,7 @@ const AuthService = {
       user.verified = true;
       user.verifyToken = undefined;
       user.verifyTokenExpires = undefined;
+      user.provider = "local";
 
       user.avatar = {
         url: generateCustomAvatar(user.email),
@@ -200,6 +364,44 @@ const AuthService = {
             : process.env.PRODUCTION_ALLOW_URL
         }`,
       };
+    } catch (error) {
+      throwError(error.message);
+    }
+  },
+
+  async verifyLinkAccount(data) {
+    try {
+      const { token } = data;
+
+      await verifyLinkAccountSchema.validate(data);
+
+      const linkAccountResetToken = crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex");
+
+      const user = await User.findOne({
+        linkAccountResetToken,
+        linkAccountExpires: { $gt: Date.now() },
+      });
+
+      if (!user) {
+        return {
+          url: `${
+            isDevelopment
+              ? process.env.DEV_ALLOW_URL
+              : process.env.PRODUCTION_ALLOW_URL
+          }/auth/error`,
+        };
+      }
+
+      user.linkAccountResetToken = undefined;
+      user.linkAccountExpires = undefined;
+      user.provider = "both";
+
+      await user.save({
+        validateModifiedOnly: true,
+      });
     } catch (error) {
       throwError(error.message);
     }
@@ -337,6 +539,16 @@ const AuthService = {
     }
   },
 };
+
+function canLogin(method, provider) {
+  if (method === "google") {
+    return provider === "google" || provider === "both";
+  }
+  if (method === "password") {
+    return provider === "local" || provider === "both";
+  }
+  return false;
+}
 
 const signToken = (userId, jit, rememberMe = false) => {
   const expiresIn = rememberMe

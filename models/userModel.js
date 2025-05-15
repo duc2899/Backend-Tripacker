@@ -56,7 +56,7 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
+      required: false,
       minLength: [3, "Password must be greater than 3 characters"],
       maxLength: [15, "Password must be less than 15 characters"],
     },
@@ -70,12 +70,10 @@ const userSchema = new mongoose.Schema(
     },
     verifyToken: String, // Mã xác thực
     verifyTokenExpires: Date, // Thời gian hết hạn mã xác thực
-    passwordResetToken: {
-      type: String,
-    },
-    passwordResetExpires: {
-      type: Date,
-    },
+    passwordResetToken: String,
+    passwordResetExpires: Date,
+    linkAccountResetToken: String,
+    linkAccountExpires: Date,
     createdAt: {
       type: Date,
       default: Date.now,
@@ -88,6 +86,15 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "user",
       enum: ["admin", "user"],
+    },
+    provider: {
+      type: String,
+      enum: ["local", "google", "both"],
+      default: "local",
+    },
+    googleId: {
+      type: String,
+      default: "",
     },
   },
   { timestamps: true }
@@ -126,6 +133,18 @@ userSchema.methods.createPasswordResetToken = function () {
     .digest("hex");
   this.passwordResetToken = hashesToken;
   this.passwordResetExpires = Date.now() + TIME_CHANGE_PASSWORD * 60 * 1000;
+  // You need to save the user object after modifying it
+  return hashesToken;
+};
+
+userSchema.methods.createlinkAccountToken = function () {
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  const hashesToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+  this.linkAccountResetToken = hashesToken;
+  this.linkAccountExpires = Date.now() + TIME_CHANGE_PASSWORD * 60 * 1000;
   // You need to save the user object after modifying it
   return hashesToken;
 };

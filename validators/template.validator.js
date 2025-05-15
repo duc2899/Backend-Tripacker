@@ -262,6 +262,7 @@ const updateTripAssistantSchema = yup.object().shape({
 
 const managerCategorySchema = yup.object().shape({
   templateId: objectIdSchema,
+  packId: objectIdSchema,
   categoryId: objectIdNullAbleSchema,
   categoryName: yup.string().typeError("COMMON-007").nullable(),
   type: typeSchema,
@@ -270,6 +271,7 @@ const managerCategorySchema = yup.object().shape({
 const managerItemsCategorySchema = yup.object().shape({
   templateId: objectIdSchema,
   categoryId: objectIdNullAbleSchema,
+  packId: objectIdSchema,
   itemId: objectIdNullAbleSchema,
   itemName: yup.string().typeError("COMMON-007").nullable(),
   isCheck: yup.boolean().typeError("COMMON-007").nullable(),

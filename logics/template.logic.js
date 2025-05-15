@@ -226,6 +226,21 @@ const caculateDays = (startDate, endDate) => {
   return diffDays;
 };
 
+/**
+ * @param {Array} activities
+ * @returns {Array}
+ */
+const handelSortedActivities = (activities) => {
+  return activities?.sort((a, b) => {
+    // Nếu cả 2 đều completed hoặc chưa completed thì sắp xếp theo order
+    if (a.completed === b.completed) {
+      return (a.order ?? 0) - (b.order ?? 0);
+    }
+    // Đẩy completed xuống cuối
+    return a.completed ? 1 : -1;
+  });
+};
+
 module.exports = {
   handleUpdateListMembers,
   handleCheckExitBackground,
@@ -237,4 +252,5 @@ module.exports = {
   handleUpdateCountCallSuggest,
   handleGetListMembers,
   caculateDays,
+  handelSortedActivities,
 };

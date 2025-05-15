@@ -32,7 +32,7 @@ const verifyEmailSchema = yup.object().shape({
   token: yup.string().typeError("COMMON-007").required("COMMON-006").trim(),
 });
 
-const loginSchema = yup.object().shape({
+const loginNormalSchema = yup.object().shape({
   email: yup
     .string()
     .typeError("COMMON-007")
@@ -106,12 +106,41 @@ const changePasswordSchema = yup.object().shape({
     .trim(),
 });
 
+const linkAccountSchema = yup.object().shape({
+  email: yup
+    .string()
+    .typeError("COMMON-007")
+    .required("AUTH-001")
+    .trim()
+    .test("is-valid-email", "TEM-024", function (value) {
+      return emailRegex.test(value);
+    }),
+  password: yup
+    .string()
+    .typeError("COMMON-007")
+    .min(3, "AUTH-031")
+    .max(15, "AUTH-031")
+    .trim()
+    .nullable(),
+});
+
+const loginGoogleSchema = yup.object().shape({
+  code: yup.string().typeError("COMMON-007").required("AUTH-001").trim(),
+});
+
+const verifyLinkAccountSchema = yup.object().shape({
+  token: yup.string().typeError("COMMON-007").required("COMMON-006").trim(),
+});
+
 module.exports = {
   registerSchema,
   verifyEmailSchema,
-  loginSchema,
+  loginNormalSchema,
   logoutchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
+  linkAccountSchema,
+  loginGoogleSchema,
+  verifyLinkAccountSchema,
 };

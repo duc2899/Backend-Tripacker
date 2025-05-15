@@ -1,6 +1,8 @@
 const TripTimeLineService = require("../services/myTemplates/tripTimeLine.service");
 const TripAsstitantService = require("../services/myTemplates/tripAsstitant.service");
 
+//--------------------- Trip Timeline -------------------------------
+
 exports.getTripTimeLine = async (req, res, next) => {
   try {
     const result = await TripTimeLineService.getTripTimeLine(
@@ -19,10 +21,7 @@ exports.getTripTimeLine = async (req, res, next) => {
 
 exports.updateTripTimeLine = async (req, res, next) => {
   try {
-    const result = await TripTimeLineService.updateTripTimeLine(
-      req.user,
-      req.body
-    );
+    const result = await TripTimeLineService.updateTripTimeLine(req.body);
     return res.status(200).json({
       message: "COMMON-003",
       data: result,
@@ -131,34 +130,13 @@ exports.reOrderActivity = async (req, res, next) => {
   try {
     const result = await TripTimeLineService.reOrderActivity(req.body);
     return res.status(200).json({
-      message: "COMMON-004",
+      message: "COMMON-003",
       status: true,
       data: result,
     });
   } catch (error) {
     next(error);
   }
-};
-
-exports.checkPermission = (roles = ["edit"]) => {
-  return async (req, res, next) => {
-    try {
-      const { templateId } = {
-        ...req.params,
-        ...req.body,
-        ...req.query,
-      };
-
-      await TripTimeLineService.middleCheckPermission(
-        req.user,
-        templateId,
-        roles // Sử dụng roles được truyền vào
-      );
-      next();
-    } catch (error) {
-      next(error);
-    }
-  };
 };
 
 //--------------------- Trip Asstitant -------------------------------
@@ -246,4 +224,28 @@ exports.getWeatherForecast = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+//--------------------- Template Common ------------------------------- ////
+
+exports.checkPermission = (roles = ["edit"]) => {
+  return async (req, res, next) => {
+    try {
+      const { templateId } = {
+        ...req.params,
+        ...req.body,
+        ...req.query,
+      };
+
+      await TripTimeLineService.middleCheckPermission(
+        req.user,
+        templateId,
+        roles // Sử dụng roles được truyền vào
+      );
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
 };
