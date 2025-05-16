@@ -42,7 +42,7 @@ exports.createTemplate = async (req, res, next) => {
 
 exports.searchTemplates = async (req, res, next) => {
   try {
-    const result = await templateService.searchTemplates(req.params);
+    const result = await TemplateService.searchTemplates(req.query);
     return res.status(200).json({
       message: "COMMON-002",
       data: result,
@@ -57,7 +57,7 @@ exports.searchUsersByEmail = async (req, res, next) => {
   try {
     const result = await TemplateService.searchUsersByEmail(
       req.user,
-      req.params
+      req.query
     );
     return res.status(200).json({
       message: "COMMON-002",

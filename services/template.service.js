@@ -224,37 +224,50 @@ const TemplateService = {
     const { email } = reqUser;
     const { query } = data;
 
-    const pipeline = [];
-
-    if (query) {
-      pipeline.push({
-        $match: {
-          email: { $regex: query, $options: "i" },
-        },
-      });
-    } else {
+    if (!query) {
       return {
         data: [],
       };
     }
 
-    pipeline.push({
-      $project: {
-        _id: 0,
-        email: 1,
-        fullName: 1,
-        avatar: {
-          $ifNull: ["$avatar.url", ""],
+    const isFullEmail = query.includes("@");
+
+    const users = await UserModel.aggregate([
+      {
+        $addFields: {
+          localPart: { $arrayElemAt: [{ $split: ["$email", "@"] }, 0] },
         },
       },
-    });
+      {
+        $match: isFullEmail
+          ? {
+              email: { $regex: `^${query}$`, $options: "i" }, // khớp toàn bộ email
+            }
+          : {
+              $expr: {
+                $regexMatch: {
+                  input: "$localPart",
+                  regex: `^${query}$`,
+                  options: "i",
+                },
+              },
+            },
+      },
+      {
+        $project: {
+          _id: 0,
+          email: 1,
+          fullName: 1,
+          avatar: {
+            $ifNull: ["$avatar.url", ""],
+          },
+        },
+      },
+    ]);
 
-    const users = await UserModel.aggregate(pipeline);
     const newListUser = users.filter((user) => user.email !== email);
 
-    return {
-      data: newListUser,
-    };
+    return newListUser;
   },
 };
 
