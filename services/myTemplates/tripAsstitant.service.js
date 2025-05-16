@@ -74,7 +74,10 @@ const TripAsstitantService = {
 
     const result = {
       _id: template._id,
-      packs: template.pack.categories,
+      pack: {
+        _id: template.pack._id,
+        categories: template.pack.categories,
+      },
       healthNotes: template.healthNotes,
       checklistSuggestions,
     };
@@ -115,7 +118,7 @@ const TripAsstitantService = {
         !forceUpdate &&
         template.countCallSuggest <= MAX_CALL_SUGGEST
       ) {
-        return cachedData.packs || template.pack.categories;
+        return cachedData.pack || template.pack.categories;
       }
 
       const { to, startDate, endDate, budget, members, vihicle } = template;
@@ -143,13 +146,13 @@ const TripAsstitantService = {
 
       const jsonMatch = cleaned.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
       if (!jsonMatch) {
-        return cachedData?.packs || template.pack.categories;
+        return cachedData?.pack || template.pack.categories;
       }
 
       const result = JSON.parse(jsonMatch[0]);
 
       if (!Array.isArray(result)) {
-        return cachedData?.packs || template.pack.categories;
+        return cachedData?.pack || template.pack.categories;
       }
 
       const pack = await PackModel.findById(template.pack._id);
@@ -163,7 +166,10 @@ const TripAsstitantService = {
       // Update cache with new result
       const updatedCache = {
         ...cachedData,
-        packs: result,
+        pack: {
+          _id: pack._id,
+          categories: result,
+        },
       };
       await setCache(cacheKey, updatedCache);
 
@@ -175,7 +181,7 @@ const TripAsstitantService = {
     } catch (error) {
       const cacheKey = `${CACHE_TEMPLATE_TRIP_ASSTIANT}:${templateId}`;
       const cachedData = await getCache(cacheKey);
-      return cachedData?.packs || template?.pack?.categories || [];
+      return cachedData?.pack || [];
     }
   },
 
@@ -427,7 +433,10 @@ const TripAsstitantService = {
       const currentCache = await getCache(tripAssistantCacheKey);
 
       if (currentCache) {
-        currentCache.packs = result;
+        currentCache.pack = {
+          _id: result._id,
+          categories: result.categories,
+        };
         await setCache(tripAssistantCacheKey, currentCache);
       }
 
@@ -480,14 +489,21 @@ const TripAsstitantService = {
           break;
 
         case "update":
-          if (!itemName) {
+          if (!itemName && isCheck === undefined) {
             throwError("COMMON-006");
           }
           const itemToUpdate = category.items.id(itemId);
           if (!itemToUpdate) throwError("TEM-041"); // Không tìm thấy item
-
-          itemToUpdate.name = itemName;
-          itemToUpdate.isCheck = isCheck;
+          if (itemName) {
+            const isDuplicate = category.items.some(
+              (item) => item.name === itemName
+            );
+            if (isDuplicate) throwError("TEM-040"); // Tên item đã tồn tại
+            itemToUpdate.name = itemName;
+          }
+          if (isCheck !== undefined) {
+            itemToUpdate.isCheck = isCheck;
+          }
           break;
 
         case "delete":
@@ -509,7 +525,10 @@ const TripAsstitantService = {
       const currentCache = await getCache(tripAssistantCacheKey);
 
       if (currentCache) {
-        currentCache.packs = pack;
+        currentCache.pack = {
+          _id: pack._id,
+          categories: pack.categories,
+        };
         await setCache(tripAssistantCacheKey, currentCache);
       }
       return pack;

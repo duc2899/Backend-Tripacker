@@ -270,7 +270,7 @@ const managerCategorySchema = yup.object().shape({
 
 const managerItemsCategorySchema = yup.object().shape({
   templateId: objectIdSchema,
-  categoryId: objectIdNullAbleSchema,
+  categoryId: objectIdSchema,
   packId: objectIdSchema,
   itemId: objectIdNullAbleSchema,
   itemName: yup.string().typeError("COMMON-007").nullable(),
