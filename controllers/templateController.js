@@ -55,7 +55,7 @@ exports.searchTemplates = async (req, res, next) => {
 
 exports.searchUsersByEmail = async (req, res, next) => {
   try {
-    const result = await templateService.searchUsersByEmail(
+    const result = await TemplateService.searchUsersByEmail(
       req.user,
       req.params
     );
