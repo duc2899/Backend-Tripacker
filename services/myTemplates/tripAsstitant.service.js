@@ -341,110 +341,79 @@ const TripAsstitantService = {
       await managerCategorySchema.validate(data);
       const { categoryName, type, templateId, categoryId, packId } = data;
 
-      const pack = await PackModel.findById(packId).lean();
-
+      const pack = await PackModel.findById(packId);
       if (!pack) throwError("TEM-042");
 
-      let result;
+      let resultCategory = null;
 
       switch (type) {
-        case "create":
-          if (!categoryName) {
-            throwError("COMMON-006");
-          }
-          if (pack.categories.length >= MAX_CATEGORY_PER_TEMPLATE) {
+        case "create": {
+          if (!categoryName) throwError("COMMON-006");
+          if (pack.categories.length >= MAX_CATEGORY_PER_TEMPLATE)
             throwError("TEM-045");
-          }
+          if (pack.categories.some((cat) => cat.category === categoryName))
+            throwError("TEM-039");
+
           const newCategory = {
+            _id: new mongoose.Types.ObjectId(),
             category: categoryName,
             items: [],
             isDefault: false,
-            _id: new mongoose.Types.ObjectId(),
           };
-
-          const newListCategories = await PackModel.findOneAndUpdate(
-            {
-              _id: packId,
-              "categories.category": { $ne: newCategory.category },
-            },
-            { $push: { categories: newCategory } },
-            {
-              new: true,
-              runValidators: true,
-            }
-          );
-
-          if (!newListCategories) {
-            throwError("TEM-039");
-          }
-          result = newListCategories;
+          pack.categories.push(newCategory);
+          resultCategory = newCategory;
           break;
-        case "update":
-          if (!categoryName) {
-            throwError("COMMON-006");
-          }
-          const pack = await PackModel.findById(packId);
+        }
 
-          if (!pack) {
+        case "update": {
+          if (!categoryName) throwError("COMMON-006");
+          if (
+            pack.categories.some(
+              (cat) =>
+                cat.category === categoryName &&
+                cat._id.toString() !== categoryId
+            )
+          )
             throwError("TEM-039");
-          }
 
-          // 2. Kiểm tra xem categoryName đã tồn tại chưa
-          const isDuplicate = pack.categories.some(
-            (cat) => cat.category === categoryName
-          );
-
-          if (isDuplicate) {
-            throwError("TEM-039");
-          }
-
-          const updatedPack = await PackModel.findOneAndUpdate(
-            {
-              _id: packId,
-              "categories._id": categoryId, // ID của category con trong mảng
-            },
-            {
-              $set: { "categories.$.category": categoryName }, // cập nhật category name
-            },
-            { new: true, runValidators: true }
-          );
-
-          result = updatedPack;
+          const catToUpdate = pack.categories.id(categoryId);
+          if (!catToUpdate) throwError("TEM-043");
+          catToUpdate.category = categoryName;
+          resultCategory = catToUpdate;
           break;
-        case "delete":
-          const deletedPack = await PackModel.findOneAndUpdate(
-            { _id: packId },
-            { $pull: { categories: { _id: categoryId } } },
-            { new: true, runValidators: true }
-          );
+        }
 
-          if (!deletedPack) {
-            throwError("TEM-042"); // Không tìm thấy pack hoặc không xóa được
-          }
-          result = deletedPack;
+        case "delete": {
+          const idx = pack.categories.findIndex(
+            (cat) => cat._id.toString() === categoryId
+          );
+          if (idx === -1) throwError("TEM-043");
+          pack.categories.splice(idx, 1);
           break;
+        }
+
         default:
           throwError("TEM-044");
-          break;
       }
-      // Get current cache and update both packs and healthNotes
+
+      // Save một lần duy nhất sau khi switch
+      await pack.save();
+
+      // Cập nhật cache nếu có
       const tripAssistantCacheKey = `${CACHE_TEMPLATE_TRIP_ASSTIANT}:${templateId}`;
       const currentCache = await getCache(tripAssistantCacheKey);
-
       if (currentCache) {
         currentCache.pack = {
-          _id: result._id,
-          categories: result.categories,
+          _id: pack._id,
+          categories: pack.categories,
         };
         await setCache(tripAssistantCacheKey, currentCache);
       }
 
-      return result;
+      // Chỉ trả về category vừa tạo hoặc update
+      return resultCategory || {};
     } catch (error) {
-      if (error.code === 11000) {
-        // Duplicate key error (nếu unique index hoạt động)
-        throwError("TEM-039");
-      }
+      if (error.code === 11000) throwError("TEM-039");
       throwError(error.message);
     }
   },
@@ -463,55 +432,49 @@ const TripAsstitantService = {
       } = data;
 
       const pack = await PackModel.findById(packId);
-      if (!pack) throwError("TEM-042"); // Không tìm thấy pack
-
+      if (!pack) throwError("TEM-042");
       const category = pack.categories.id(categoryId);
+      if (!category) throwError("TEM-043");
 
-      if (!category) throwError("TEM-043"); // Không tìm thấy category
+      let resultItem = null;
 
       switch (type) {
         case "create":
-          if (!itemName) {
-            throwError("COMMON-006");
-          }
+          if (!itemName) throwError("COMMON-006");
 
-          if (category.items.length >= MAX_ITEM_PER_CATEGORY) {
+          if (category.items.length >= MAX_ITEM_PER_CATEGORY)
             throwError("TEM-045");
-          }
 
-          const isDuplicate = category.items.some(
-            (item) => item.name === itemName
-          );
-          if (isDuplicate) throwError("TEM-040"); // Tên item đã tồn tại
-
-          category.items.push({ name: itemName, isCheck: false });
+          if (category.items.some((item) => item.name === itemName))
+            throwError("TEM-040");
+          const newItem = { name: itemName, isCheck: false };
+          category.items.push(newItem);
+          resultItem = category.items[category.items.length - 1]; // lấy item vừa push
           break;
 
         case "update":
-          if (!itemName && isCheck === undefined) {
-            throwError("COMMON-006");
-          }
-          const itemToUpdate = category.items.id(itemId);
-          if (!itemToUpdate) throwError("TEM-041"); // Không tìm thấy item
+          if (!itemName && isCheck === undefined) throwError("COMMON-006");
+          const item = category.items.id(itemId);
+          if (!item) throwError("TEM-041");
           if (itemName) {
-            const isDuplicate = category.items.some(
-              (item) => item.name === itemName
-            );
-            if (isDuplicate) throwError("TEM-040"); // Tên item đã tồn tại
-            itemToUpdate.name = itemName;
+            if (
+              category.items.some(
+                (i) => i.name === itemName && i._id.toString() !== itemId
+              )
+            )
+              throwError("TEM-040");
+            item.name = itemName;
           }
-          if (isCheck !== undefined) {
-            itemToUpdate.isCheck = isCheck;
-          }
+          if (isCheck !== undefined) item.isCheck = isCheck;
+          resultItem = item;
           break;
 
         case "delete":
-          const itemIndex = category.items.findIndex(
+          const idx = category.items.findIndex(
             (i) => i._id.toString() === itemId
           );
-          if (itemIndex === -1) throwError("TEM-041"); // Không tìm thấy item
-
-          category.items.splice(itemIndex, 1);
+          if (idx === -1) throwError("TEM-041");
+          category.items.splice(idx, 1);
           break;
 
         default:
@@ -520,17 +483,14 @@ const TripAsstitantService = {
 
       await pack.save();
 
-      const tripAssistantCacheKey = `${CACHE_TEMPLATE_TRIP_ASSTIANT}:${templateId}`;
-      const currentCache = await getCache(tripAssistantCacheKey);
-
-      if (currentCache) {
-        currentCache.pack = {
-          _id: pack._id,
-          categories: pack.categories,
-        };
-        await setCache(tripAssistantCacheKey, currentCache);
+      const cacheKey = `${CACHE_TEMPLATE_TRIP_ASSTIANT}:${templateId}`;
+      const cache = await getCache(cacheKey);
+      if (cache) {
+        cache.pack = { _id: pack._id, categories: pack.categories };
+        await setCache(cacheKey, cache);
       }
-      return pack;
+
+      return resultItem || {};
     } catch (error) {
       throwError(error.message);
     }

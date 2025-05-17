@@ -240,9 +240,6 @@ const AuthService = {
       return {
         _id: user._id,
         access_token: token,
-        avatar: user.avatar?.url,
-        fullName: user.fullName,
-        email: user.email,
       };
     } catch (error) {
       throwError(error.message);
