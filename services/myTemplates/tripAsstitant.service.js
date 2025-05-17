@@ -345,16 +345,15 @@ const TripAsstitantService = {
 
       if (!pack) throwError("TEM-042");
 
-      if (pack.categories.length >= MAX_CATEGORY_PER_TEMPLATE) {
-        throwError("TEM-045");
-      }
-
       let result;
 
       switch (type) {
         case "create":
           if (!categoryName) {
             throwError("COMMON-006");
+          }
+          if (pack.categories.length >= MAX_CATEGORY_PER_TEMPLATE) {
+            throwError("TEM-045");
           }
           const newCategory = {
             category: categoryName,
@@ -470,14 +469,14 @@ const TripAsstitantService = {
 
       if (!category) throwError("TEM-043"); // Không tìm thấy category
 
-      if (category.items.length >= MAX_ITEM_PER_CATEGORY) {
-        throwError("TEM-045");
-      }
-
       switch (type) {
         case "create":
           if (!itemName) {
             throwError("COMMON-006");
+          }
+
+          if (category.items.length >= MAX_ITEM_PER_CATEGORY) {
+            throwError("TEM-045");
           }
 
           const isDuplicate = category.items.some(
